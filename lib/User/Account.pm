@@ -346,7 +346,7 @@ User::Account - Abstraction layer to represent a user of the system.
 
   # Loading an existing user from the database.
   my $account = User::Account->load(dbh => $dbh, email => "email@test.com");
-  my $account = User::Account->load(dbh => $dbh, password => "P@ss1234");
+  my $account = User::Account->load(dbh => $dbh, id => 123);
   print $account->get("email");
 
 =head1 METHODS

@@ -13,6 +13,10 @@ describe "A user" => sub {
 	my $dbh;
 	my $config;
 
+	my $email = "test\@example.com";
+	my $password = "P\@ssword123";
+	my $permission = 7;
+
 	before all => sub {
 		# Load configuration.
 		$config = Config::Tiny->read("config/testing.conf");
@@ -57,10 +61,6 @@ describe "A user" => sub {
 		};
 
 		describe "nicely" => sub {
-			my $email = "test\@example.com";
-			my $password = "P\@ssword123";
-			my $permission = 7;
-
 			it "should be created" => sub {
 				$account = User::Account->create($dbh,
 												 $email, $password,
@@ -108,6 +108,35 @@ describe "A user" => sub {
 			it "should be able to save changes" => sub {
 				ok($account->save());
 			};
+
+			after all => sub {
+				$account = undef;
+			};
+		};
+	};
+
+	describe "loaded" => sub {
+		my $account;
+
+		it "should load nicely" => sub {
+			$account = User::Account->load(dbh => $dbh, email => $email);
+			is(ref $account, "User::Account");
+		};
+
+		it "shouldn't be dirty" => sub {
+			ok(not $account->get("dirty"));
+		};
+
+		it "should have a matching email" => sub {
+			is($account->get("email"), $email);
+		};
+
+		it "should have a matching password" => sub {
+			ok($account->check_password($password));
+		};
+
+		it "should have a matching permission" => sub {
+			is($account->get("permission"), $permission);
 		};
 	};
 };
