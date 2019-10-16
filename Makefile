@@ -9,7 +9,9 @@ RM = rm -f
 # Paths.
 TESTDB = testing.db
 
-test: $(TESTDB)
+test:
+	$(RM) $(TESTDB)
+	sqlite3 $(TESTDB) < sql/initialize.sql
 	prove -lvcf
 
 critic:
