@@ -1,0 +1,32 @@
+=pod
+
+=head1 NAME
+
+PartCat - Electronic Components Cataloger and Organizer
+
+=head1 SUMMARY
+
+A simple project that aims to create a nice backend for a electronic component
+catalog. This is only a backend, so the clients should be created separate from
+this module.
+
+=head1 SETUP
+
+All you need to do is run C<make init> to create the database and a sample
+configuration file for the application, then all you need to do is edit the
+C<config/main.conf> file and change the settings to fit your needs.
+
+=head1 TESTING
+
+To make sure everything is perfect for deployment you can run C<make test>,
+which will run all the unit tests to make sure that you have a working system.
+
+=head1 AUTHOR
+
+Nathan Campos <nathan@innoveworkhsop.com>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2019- Innove Workshop Company.
+
+=cut

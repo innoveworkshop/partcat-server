@@ -1,0 +1,6 @@
+# Databases.
+*.db
+
+# Misc.
+.DS_Store
+
