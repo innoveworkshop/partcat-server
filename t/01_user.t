@@ -18,16 +18,17 @@ describe "A user" => sub {
 		$config = Config::Tiny->read("config/testing.conf");
 
 		# Open the database connection.
-		$dbh = DBI->connect("dbi:SQLite:dbname=../$config->{database}->{name}",
+		$dbh = DBI->connect("dbi:SQLite:dbname=$config->{database}->{name}",
 							"", "", { AutoCommit => 1 });
 	};
 
 	describe "created" => sub {
-		describe "empty" => sub {
-			my $account;
+		my $account;
 
-			before all => sub {
+		describe "empty" => sub {
+			it "should be created" => sub {
 				$account = User::Account->new($dbh);
+				is(ref $account, "User::Account");
 			};
 
 			it "should have no email" => sub {
@@ -48,6 +49,64 @@ describe "A user" => sub {
 
 			it "should not exist" => sub {
 				ok(not $account->exists());
+			};
+
+			after all => sub {
+				$account = undef;
+			};
+		};
+
+		describe "nicely" => sub {
+			my $email = "test\@example.com";
+			my $password = "P\@ssword123";
+			my $permission = 7;
+
+			it "should be created" => sub {
+				$account = User::Account->create($dbh,
+												 $email, $password,
+												 $permission);
+				is(ref $account, "User::Account");
+			};
+
+			it "should have a matching email" => sub {
+				is($account->get("email"), $email);
+			};
+
+			it "should have a matching password" => sub {
+				ok($account->check_password($password));
+			};
+
+			it "should have a matching permission" => sub {
+				is($account->get("permission"), $permission);
+			};
+
+			it "should be dirty now" => sub {
+				ok($account->get("dirty"));
+			};
+
+			it "shouldn't exist since it hasn't been saved yet" => sub {
+				ok(not $account->exists());
+			};
+
+			it "should save correctly" => sub {
+				ok($account->save());
+			};
+
+			it "shouldn't be dirty after the save" => sub {
+				ok(not $account->get("dirty"));
+			};
+
+			it "should exist" => sub {
+				ok($account->exists());
+			};
+
+			it "should be able to change the email" => sub {
+				$email = "example\@test.com";
+				ok($account->set_email($email));
+			};
+
+			it "should be able to save changes" => sub {
+				ok($account->save());
 			};
 		};
 	};

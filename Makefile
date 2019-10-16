@@ -3,6 +3,10 @@
 #
 # Author: Nathan Campos <nathan@innoveworkshop.com>
 
+# Programs.
+RM = rm -f
+
+# Paths.
 TESTDB = testing.db
 
 test: $(TESTDB)
@@ -13,3 +17,6 @@ critic:
 
 $(TESTDB):
 	sqlite3 $(TESTDB) < sql/initialize.sql
+
+clean:
+	$(RM) $(TESTDB)

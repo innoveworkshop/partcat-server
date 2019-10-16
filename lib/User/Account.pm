@@ -33,7 +33,7 @@ sub create {
 	my $self = $class->new($dbh);
 
 	# Set email and password correctly.
-	if (not self->set_email($email)) {
+	if (not $self->set_email($email, 1)) {
 		return undef;
 	}
 	if (not $self->set_password($password)) {
@@ -76,7 +76,7 @@ sub save {
 	my $success = 0;
 
 	# Check if all the required parameters are defined.
-	foreach my $param ('email', 'password') {
+	foreach my $param ('email', 'password', 'permission') {
 		if (not defined $self->{$param}) {
 			carp "Account '$param' was not defined before saving";
 			return 0;
@@ -121,7 +121,7 @@ sub get {
 
 # Sets the user email.
 sub set_email {
-	my ($self, $email) = @_;
+	my ($self, $email, $nocheck) = @_;
 	my $old_email = $self->{email};
 	$email = lc $email;
 
@@ -145,9 +145,11 @@ sub set_email {
 	}
 
 	# Check if the email isn't used by another user.
-	if (_user_exists(email => $email)) {
-		carp "There is already a user with this email registered";
-		return 0;
+	if ((defined $nocheck) && (not $nocheck)) {
+		if (User::Account->exists(dbh => $self->{_dbh}, email => $email)) {
+			carp "There is already a user with this email registered";
+			return 0;
+		}
 	}
 
 	# New user email.
@@ -228,8 +230,13 @@ sub check_password {
 sub exists {
 	my ($class, %lookup) = @_;
 
-	# Calling as a static method.
+	# Check type of call.
 	if (not ref $class) {
+		# Calling as a static method.
+		if (not defined $lookup{dbh}) {
+			croak "A database handler wasn't defined";
+		}
+
 		if (defined $lookup{id}) {
 			# Lookup the user by ID.
 			my $sth = $lookup{dbh}->prepare("SELECT id FROM Users WHERE id = ?");
@@ -237,7 +244,7 @@ sub exists {
 
 			if (defined $sth->fetchrow_arrayref()) {
 				return 1;
-				}
+			}
 		} elsif (defined $lookup{email}) {
 			# Lookup the user by email.
 			my $sth = $lookup{dbh}->prepare("SELECT id FROM Users WHERE email = ?");
@@ -280,11 +287,43 @@ sub _fetch_user {
 }
 
 sub _update_user {
-	...
+	my ($self) = @_;
+
+	# Check if user exists.
+	if (not User::Account->exists(dbh => $self->{_dbh}, id => $self->{id})) {
+		carp "Can't update a user that doesn't exist";
+		return 0;
+	}
+
+	# Update the user information.
+	my $sth = $self->{_dbh}->prepare("UPDATE users SET email = ?, password = ?,
+                                      permission = ? WHERE id = ?");
+	if ($sth->execute($self->{email}, $self->{password}, $self->{permission},
+					  $self->{id})) {
+		return 1;
+	}
+
+	return 0;
 }
 
 sub _add_user {
-	...
+	my ($self) = @_;
+
+	# Check if the email already exists.
+	if (User::Account->exists(dbh => $self->{_dbh}, email => $self->{email})) {
+		carp "User email already exists";
+		return;
+	}
+
+	# Add the new user to the database.
+	my $sth = $self->{_dbh}->prepare("INSERT INTO Users(email, password,
+                                      permission) VALUES (?, ?, ?)");
+	if ($sth->execute($self->{email}, $self->{password}, $self->{permission})) {
+		# Get the user ID from the last insert operation.
+		return $self->{_dbh}->last_insert_id(undef, undef, 'users', 'id');
+	}
+
+	return;
 }
 
 
@@ -340,11 +379,14 @@ this will return C<1>.
 
 Retrieves the value of I<$param> from the account object.
 
-=item I<$success> = I<$account>->C<set_email>(I<$email>)
+=item I<$success> = I<$account>->C<set_email>(I<$email>, <I<$nocheck>>)
 
 Sets the user account email and returns C<1> if the email is valid and is not
 associated with another account. B<Remember> to call C<save()> to commit these
 changes to the database.
+
+If you don't want this function to check if the email already exists in the
+database, just set the I<$nocheck> argument to C<1>.
 
 =item I<$success> = I<$account>->C<set_password>(I<$password>)
 
@@ -375,6 +417,16 @@ It should contain a I<dbh> parameter and a I<email> B<or> I<id>.
 
 Fetches user data from the database given a user ID (I<id>) or email (I<email>)
 passed in the I<%lookup> argument.
+
+=item I<$success> = I<$self>->C<_update_user>()
+
+Updates the user data in the database with the values from the object and
+returns 1 if the operation was successful.
+
+=item I<$user_id> = I<$self>->C<_add_user>()
+
+Creates a new user inside the database with the values from the object and
+returns the user ID if everything went fine.
 
 =back
 
