@@ -60,14 +60,10 @@ sub load {
 		$self->{email} = $user->{email};
 		$self->{password} = $user->{password};
 		$self->{permission} = $user->{permission};
-	} else {
-		# No user found with those parameters.
-		return;
-	}
+		$self->{dirty} = 0;
 
-	# Set dirtiness and return object.
-	$self->{dirty} = 0;
-	return $self;
+		return $self;
+	}
 }
 
 # Saves the user data to the database.
@@ -286,6 +282,7 @@ sub _fetch_user {
 	return;
 }
 
+# Update a user in the database.
 sub _update_user {
 	my ($self) = @_;
 
@@ -306,6 +303,7 @@ sub _update_user {
 	return 0;
 }
 
+# Adds a new user in the database.
 sub _add_user {
 	my ($self) = @_;
 
@@ -322,8 +320,6 @@ sub _add_user {
 		# Get the user ID from the last insert operation.
 		return $self->{_dbh}->last_insert_id(undef, undef, 'users', 'id');
 	}
-
-	return;
 }
 
 
