@@ -15,7 +15,7 @@ test:
 	prove -lvcf
 
 critic:
-	-perlcritic -4 bin/ lib/
+	perlcritic -4 lib/
 
 $(TESTDB):
 	sqlite3 $(TESTDB) < sql/initialize.sql

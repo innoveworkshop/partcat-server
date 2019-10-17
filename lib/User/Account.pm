@@ -34,10 +34,10 @@ sub create {
 
 	# Set email and password correctly.
 	if (not $self->set_email($email, 1)) {
-		return undef;
+		return;
 	}
 	if (not $self->set_password($password)) {
-		return undef;
+		return;
 	}
 
 	# Set all the other data.
@@ -351,7 +351,7 @@ User::Account - Abstraction layer to represent a user of the system.
 
 =item I<$account> = C<User::Account>->C<new>(I<$dbh>)
 
-Initializes an empty user account object.
+Initializes an empty user account object using a database handler I<$dbh>.
 
 =item I<$account> = C<User::Account>->C<create>(I<$dbh>, I<$email>, I<$password>,
 I<$permission>)
@@ -375,7 +375,7 @@ this will return C<1>.
 
 Retrieves the value of I<$param> from the account object.
 
-=item I<$success> = I<$account>->C<set_email>(I<$email>, <I<$nocheck>>)
+=item I<$success> = I<$account>->C<set_email>(I<$email>[, I<$nocheck>])
 
 Sets the user account email and returns C<1> if the email is valid and is not
 associated with another account. B<Remember> to call C<save()> to commit these
