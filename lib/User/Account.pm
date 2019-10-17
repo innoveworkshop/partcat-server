@@ -358,7 +358,7 @@ I<$permission>)
 
 Creates a new user with I<$email> and I<$password> already checked for validity.
 The I<$permission> works kinda like UNIX, 7 is R/W and 6 is just R. B<Remember>
-to call <I<$account>->C<save>() to actually save the user to the database.
+to call I<$account>->C<save>() to actually save the user to the database.
 
 =item I<$account> = C<User::Account>->C<load>(I<%lookup>)
 
