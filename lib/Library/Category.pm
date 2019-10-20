@@ -28,7 +28,7 @@ sub create {
 	my $self = $class->new($dbh);
 
 	# Set name correctly.
-	if ($self->set_name($name)) {
+	if (not $self->set_name($name)) {
 		return;
 	}
 

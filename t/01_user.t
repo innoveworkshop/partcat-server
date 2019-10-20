@@ -13,6 +13,7 @@ describe "A user" => sub {
 	my $dbh;
 	my $config;
 
+	my $account;
 	my $email = "test\@example.com";
 	my $password = "P\@ssword123";
 	my $permission = 7;
@@ -27,12 +28,14 @@ describe "A user" => sub {
 	};
 
 	describe "created" => sub {
-		my $account;
-
 		describe "empty" => sub {
 			it "should be created" => sub {
 				$account = User::Account->new($dbh);
 				is(ref $account, "User::Account");
+			};
+
+			it "should have no ID" => sub {
+				is($account->get("id"), undef);
 			};
 
 			it "should have no email" => sub {
@@ -68,6 +71,10 @@ describe "A user" => sub {
 				is(ref $account, "User::Account");
 			};
 
+			it "should have no ID" => sub {
+				is($account->get("id"), undef);
+			};
+
 			it "should have a matching email" => sub {
 				is($account->get("email"), $email);
 			};
@@ -90,6 +97,10 @@ describe "A user" => sub {
 
 			it "should save correctly" => sub {
 				ok($account->save());
+			};
+
+			it "should have an ID" => sub {
+				is($account->get("id"), 1);
 			};
 
 			it "shouldn't be dirty after the save" => sub {
@@ -116,11 +127,13 @@ describe "A user" => sub {
 	};
 
 	describe "loaded" => sub {
-		my $account;
-
 		it "should load nicely" => sub {
 			$account = User::Account->load(dbh => $dbh, email => $email);
 			is(ref $account, "User::Account");
+		};
+
+		it "should have an ID" => sub {
+			is($account->get("id"), 1);
 		};
 
 		it "shouldn't be dirty" => sub {
