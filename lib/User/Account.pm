@@ -7,7 +7,6 @@ use warnings;
 
 use Carp;
 use DBI;
-use Try::Tiny;
 use Email::Valid;
 use Authen::Passphrase::BlowfishCrypt;
 

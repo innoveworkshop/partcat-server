@@ -7,7 +7,6 @@ use warnings;
 
 use Carp;
 use DBI;
-use Try::Tiny;
 
 # Constructor.
 sub new {
