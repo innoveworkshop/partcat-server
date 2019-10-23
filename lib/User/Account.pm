@@ -149,6 +149,7 @@ sub set_email {
 
 	# New user email.
 	$self->{email} = $email;
+	$self->{dirty} = 1;
 
 	return 1;
 }
@@ -190,6 +191,8 @@ sub set_password {
 
 	# Password is OK.
 	$self->{password} = $bcrypt->as_rfc2307();
+	$self->{dirty} = 1;
+
 	return 1;
 }
 
