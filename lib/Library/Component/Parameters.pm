@@ -31,32 +31,41 @@ sub new {
 sub parse {
 	my ($self, $text) = @_;
 
-	# Set text and decode the JSON.
-	$self->{text} = $text;
-	$self->{json} = JSON::MaybeXS->new(utf8 => 1);
-	$self->{data} = $self->{json}->decode($text);
+	if (defined $text) {
+		# Set text and decode the JSON.
+		$self->{text} = $text;
+		$self->{json} = JSON::MaybeXS->new(utf8 => 1);
+		$self->{data} = $self->{json}->decode($text);
+	}
 }
 
 # Gets a list of available parameters.
 sub list {
 	my ($self) = @_;
-	my @names = keys %{$self->{data}};
 
-	return \@names;
+	if (defined $self->{data}) {
+		my @names = keys %{$self->{data}};
+		return \@names;
+	}
 }
 
 # Get a specific parameter.
 sub get {
 	my ($self, $name) = @_;
-	return $self->{data}->{$name};
+
+	if (defined $self->{data}) {
+		return $self->{data}->{$name};
+	}
 }
 
 # Returns the parameters as text.
 sub as_text {
 	my ($self) = @_;
 
-	$self->{text} = $self->{json}->encode($self->{data});
-	return $self->{text};
+	if (defined $self->{data}) {
+		$self->{text} = $self->{json}->encode($self->{data});
+		return $self->{text};
+	}
 }
 
 1;
