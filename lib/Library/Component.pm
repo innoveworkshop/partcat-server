@@ -10,6 +10,7 @@ use DBI;
 
 use Library::Category;
 use Library::Component::Parameters;
+use Library::Component::Image;
 
 # Constructor.
 sub new {
@@ -17,10 +18,10 @@ sub new {
 	my $self = {
 		_dbh        => $dbh,
 		id          => undef,
-		quantity    => undef,
-		mpn         => undef,
+		quantity    => $quantity,
+		mpn         => $mpn,
 		category    => Library::Category->new($dbh),
-		image       => undef, #Library::Image->new($dbh),
+		image       => Library::Component::Image->new($dbh),
 		description => undef,
 		parameters  => Library::Component::Parameters->new,
 		dirty       => 1
@@ -62,6 +63,7 @@ sub load {
 		$self->{mpn} = $component->{mpn};
 		$self->{description} = $component->{description};
 		$self->{parameters}->parse($component->{parameters});
+		$self->{image}->load($component->{image_id});
 
 		# Populate the category object.
 		if (defined $component->{cat_id}) {
@@ -75,17 +77,6 @@ sub load {
 					. $component->{cat_id};
 				return;
 			}
-		}
-
-		# Populate the image object.
-		if (defined $component->{image_id}) {
-			# TODO: Implement a image class.
-			...
-		}
-
-		# Populate the parameters object.
-		if (defined $component->{parameters}) {
-			# TODO: Implement a parameters class.
 		}
 
 		# Set dirtiness and return.
@@ -155,22 +146,55 @@ sub get {
 
 # Sets a component quantity.
 sub set_quantity {
-	...
+	my ($self, $quantity) = @_;
+
+	# Check if quantity is a number.
+	if (!($quantity & ~$quantity)) {
+		$self->{quantity} = $quantity;
+		$self->{dirty} = 1;
+
+		return 1;
+	}
+
+	return 0;
 }
 
 # Sets a component part number.
 sub set_mpn {
-	...
+	my ($self, $mpn, $nocheck) = @_;
+
+	# Check if the component already exists in the database.
+	if ((not Library::Component->exists(dbh => $self->{_dbh}, mpn => $mpn)) || $nocheck) {
+		$self->{mpn} = $mpn;
+		$self->{dirty} = 1;
+
+		return 1;
+	}
+
+	return 0;
 }
 
 # Sets a component category.
 sub set_category {
-	...
+	my ($self, %lookup) = @_;
+
+	# Load the category and check if it's valid before using it.
+	my $cat = Library::Category->load(dbh => $self->{_dbh}, %lookup);
+	if (defined $cat) {
+		$self->{category} = $cat;
+		$self->{dirty} = 1;
+		return 1;
+	}
+
+	return 0;
 }
 
 # Sets a component image.
 sub set_image {
-	...
+	my ($self, $image_id) = @_;
+
+	$self->{dirty} = 1;
+	return $self->{image}->load($image_id);
 }
 
 # Check if this component is valid.
@@ -266,12 +290,15 @@ sub _add_component {
 		return;
 	}
 
-	# Add the new user to the database.
-	my $sth = $self->{_dbh}->prepare("INSERT INTO Users(email, password,
-                                      permission) VALUES (?, ?, ?)");
-	if ($sth->execute($self->{email}, $self->{password}, $self->{permission})) {
-		# Get the user ID from the last insert operation.
-		return $self->{_dbh}->last_insert_id(undef, undef, 'users', 'id');
+	# Add the new component to the database.
+	my $sth = $self->{_dbh}->prepare("INSERT INTO Inventory(quantity, mpn,
+                                     cat_id, image_id, description, parameters)
+                                     VALUES (?, ?, ?, ?, ?, ?)");
+	if ($sth->execute($self->{quantity}, $self->{mpn}, $self->{category}->{id},
+					  $self->{image}->{id}, $self->{description},
+					  $self->{parameters}->as_text)) {
+		# Get the component ID from the last insert operation.
+		return $self->{_dbh}->last_insert_id(undef, undef, 'inventory', 'id');
 	}
 }
 
@@ -281,79 +308,84 @@ __END__
 
 =head1 NAME
 
-User::Account - Abstraction layer to represent a user of the system.
+Library::Component - Abstraction layer to represent a user of the system.
 
 =head1 SYNOPSIS
 
   # Create a database handler.
   my $dbh = DBI->connect(...);
 
-  # Creating a new user.
-  my $account = User::Account->create($dbh, "email@test.com", "password", 7);
-  $account->save();
+  # Creating a new component.
+  my $quantity = 123;
+  my $mpn = "BC234";
+  my $component = Library::Component->create($dbh, $quantity, $mpn);
+  $component->save();
 
-  # Loading an existing user from the database.
-  my $account = User::Account->load(dbh => $dbh, email => "email@test.com");
-  my $account = User::Account->load(dbh => $dbh, id => 123);
-  print $account->get("email");
+  # Loading an existing component from the database.
+  my $component = Library::Component->load(dbh => $dbh, mpn => $mpn);
+  my $component = Library::Component->load(dbh => $dbh, id => 432);
+  print $component->get("mpn");
 
 =head1 METHODS
 
 =over 4
 
-=item I<$account> = C<User::Account>->C<new>(I<$dbh>)
+=item I<$component> = C<Library::Component>->C<new>(I<$dbh>)
 
-Initializes an empty user account object using a database handler I<$dbh>.
+Initializes an empty component object using a database handler I<$dbh>.
 
-=item I<$account> = C<User::Account>->C<create>(I<$dbh>, I<$email>, I<$password>,
-I<$permission>)
+=item I<$component> = C<Library::Component>->C<create>(I<$dbh>, I<quantity>,
+I<$mpn>)
 
-Creates a new user with I<$email> and I<$password> already checked for validity.
-The I<$permission> works kinda like UNIX, 7 is R/W and 6 is just R. B<Remember>
-to call I<$account>->C<save>() to actually save the user to the database.
+Creates a new component with I<$quantity> and I<$mpn> already checked for
+validity.
 
-=item I<$account> = C<User::Account>->C<load>(I<%lookup>)
+=item I<$component> = C<Library::Component>->C<load>(I<%lookup>)
 
-Loads the user account object with data from the database given a database
-handler (I<dbh>), and a email (I<email>) or user ID (I<id>) in the I<%lookup>
-argument.
+Loads the component object with data from the database given a database handler
+(I<dbh>), and a mpn (I<mpn>) or ID (I<id>) in the I<%lookup> argument.
 
-=item I<$status> = I<$account>->C<save>()
+=item I<$status> = I<$component>->C<save>()
 
-Saves the user account data to the database. If the operation is successful,
-this will return C<1>.
+Saves the component data to the database. If the operation is successful, this
+will return C<1>.
 
-=item I<$data> = I<$account>->C<get>(I<$param>)
+=item I<$data> = I<$component>->C<get>(I<$param>)
 
-Retrieves the value of I<$param> from the account object.
+Retrieves the value of I<$param> from the component object.
 
-=item I<$success> = I<$account>->C<set_email>(I<$email>[, I<$nocheck>])
+=item I<$success> = I<$component>->C<set_quantity>(I<$quantity>)
 
-Sets the user account email and returns C<1> if the email is valid and is not
-associated with another account. B<Remember> to call C<save()> to commit these
+Sets the component quantity and returns C<1> if it's valid. B<Remember> to call
+C<save()> to commit these changes to the database.
+
+=item I<$success> = I<$component>->C<set_mpn>(I<$mpn>[, I<$nocheck>])
+
+Sets the component part number and returns C<1> if it's valid and is not
+associated with another component. If you want to skip the checks, just set the
+I<$nocheck> argument to C<1>. B<Remember> to call C<save()> to commit these
 changes to the database.
 
-If you don't want this function to check if the email already exists in the
-database, just set the I<$nocheck> argument to C<1>.
+=item I<$success> = I<$component>->C<set_category>(I<%lookup>)
 
-=item I<$success> = I<$account>->C<set_password>(I<$password>)
+Sets the component category using either I<id> or I<name> in the I<%lookup>
+parameter and returns C<1> if it's valid. B<Remember> to call C<save()> to
+commit these changes to the database.
 
-Sets the user account password and returns C<1> if the password is valid.
-B<Remember> to call C<save()> to commit these changes to the database.
+=item I<$success> = I<$component>->C<set_image>(I<$image_id>)
 
-=item I<$correct> = I<$account>->C<check_password>(I<$password>)
+Sets the component image using a image ID (I<$image_id>) and returns C<1> if
+it's valid. B<Remember> to call C<save()> to commit these changes to the
+database.
 
-Check if a plain-text password matches the stored hash and returns C<1> if they
-match.
+=item I<$valid> = I<$component>->C<exists>(I<%lookup>)
 
-=item I<$valid> = I<$account>->C<exists>(I<%lookup>)
-
-Checks if this account exists and if it is valid and can be used in other
-objects. In other words: Has a user ID defined in the database and has not been
-edited without being saved.
+Checks if this component exists and if it is valid and can be used in other
+objects. In other words: Has a component ID defined in the database and has not
+been edited without being saved.
 
 If called statically the I<%lookup> argument is used to check in the database.
-It should contain a I<dbh> parameter and a I<email> B<or> I<id>.
+It should contain a I<dbh> parameter and a I<mpn> B<or> I<id>.
 
 =back
 
@@ -361,20 +393,20 @@ It should contain a I<dbh> parameter and a I<email> B<or> I<id>.
 
 =over 4
 
-=item I<\%data> = I<$self>->C<_fetch_user>(I<%lookup>)
+=item I<\%data> = I<$self>->C<_fetch_component>(I<%lookup>)
 
-Fetches user data from the database given a user ID (I<id>) or email (I<email>)
+Fetches component data from the database given a component I<id> B<or> I<mpn>
 passed in the I<%lookup> argument.
 
-=item I<$success> = I<$self>->C<_update_user>()
+=item I<$success> = I<$self>->C<_update_component>()
 
-Updates the user data in the database with the values from the object and
-returns 1 if the operation was successful.
+Updates the component data in the database with the values from the object and
+returns C<1> if the operation was successful.
 
-=item I<$user_id> = I<$self>->C<_add_user>()
+=item I<$component_id> = I<$self>->C<_add_component>()
 
-Creates a new user inside the database with the values from the object and
-returns the user ID if everything went fine.
+Creates a new component inside the database with the values from the object and
+returns the component ID if everything went fine.
 
 =back
 
