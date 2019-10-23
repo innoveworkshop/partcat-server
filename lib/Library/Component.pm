@@ -18,8 +18,8 @@ sub new {
 	my $self = {
 		_dbh        => $dbh,
 		id          => undef,
-		quantity    => $quantity,
-		mpn         => $mpn,
+		quantity    => undef,
+		mpn         => undef,
 		category    => Library::Category->new($dbh),
 		image       => Library::Component::Image->new($dbh),
 		description => undef,
@@ -63,7 +63,8 @@ sub load {
 		$self->{mpn} = $component->{mpn};
 		$self->{description} = $component->{description};
 		$self->{parameters}->parse($component->{parameters});
-		$self->{image}->load($component->{image_id});
+		$self->{image} = Library::Component::Image->load(dbh => $lookup{dbh},
+														 id => $component->{image_id});
 
 		# Populate the category object.
 		if (defined $component->{cat_id}) {
@@ -98,12 +99,15 @@ sub save {
 		}
 	}
 
-	# Propagate changes to inherited parameters.
-	if (not $self->{category}->save()) {
+	# Propagate changes to category.
+	if ((not $self->{category}->save()) and
+			(defined $self->{category}->get("id"))) {
 		carp "Couldn't save the category object";
 		return 0;
 	}
-	if ($self->{image}->save()) {
+
+	# Propagate changes to image.
+	if ((not$self->{image}->save()) and (defined $self->{image}->get("id"))) {
 		carp "Couldn't save the image object";
 		return 0;
 	}
@@ -174,6 +178,16 @@ sub set_mpn {
 	return 0;
 }
 
+# Sets a component description.
+sub set_description {
+	my ($self, $description) = @_;
+
+	$self->{description} = $description;
+	$self->{dirty} = 1;
+
+	return 1;
+}
+
 # Sets a component category.
 sub set_category {
 	my ($self, %lookup) = @_;
@@ -194,7 +208,10 @@ sub set_image {
 	my ($self, $image_id) = @_;
 
 	$self->{dirty} = 1;
-	return $self->{image}->load($image_id);
+	$self->{image} = Library::Component::Image->load(dbh => $self->{_dbh},
+													 id => $image_id);
+
+	return defined $self->{image};
 }
 
 # Check if this component is valid.
@@ -366,6 +383,11 @@ Sets the component part number and returns C<1> if it's valid and is not
 associated with another component. If you want to skip the checks, just set the
 I<$nocheck> argument to C<1>. B<Remember> to call C<save()> to commit these
 changes to the database.
+
+=item I<$success> = I<$component>->C<set_description>(I<$description>)
+
+Sets the component description and returns C<1> if it's valid. B<Remember> to
+call C<save()> to commit these changes to the database.
 
 =item I<$success> = I<$component>->C<set_category>(I<%lookup>)
 

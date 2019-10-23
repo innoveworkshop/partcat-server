@@ -116,7 +116,7 @@ sub set_name {
 	}
 
 	# Check if the category isn't used by another user.
-	if ((defined $nocheck) && (not $nocheck)) {
+	if ((defined $nocheck) and (not $nocheck)) {
 		if (Library::Category->exists(dbh => $self->{_dbh}, name => $name)) {
 			carp "There is already a category with this name registered";
 			return 0;

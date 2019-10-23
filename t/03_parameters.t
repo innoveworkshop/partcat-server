@@ -41,8 +41,8 @@ describe "A parameter container" => sub {
 				is($params->list, undef);
 			};
 
-			it "should return undef when requesting text" => sub {
-				is($params->as_text, undef);
+			it "should return empty text when requesting text" => sub {
+				is($params->as_text, '');
 			};
 
 			after all => sub {

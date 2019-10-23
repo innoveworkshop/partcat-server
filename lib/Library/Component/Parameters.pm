@@ -7,6 +7,7 @@ use warnings;
 
 use Carp;
 use JSON::MaybeXS;
+use Try::Tiny;
 
 # Constructor.
 sub new {
@@ -35,7 +36,16 @@ sub parse {
 		# Set text and decode the JSON.
 		$self->{text} = $text;
 		$self->{json} = JSON::MaybeXS->new(utf8 => 1);
-		$self->{data} = $self->{json}->decode($text);
+
+		try {
+			$self->{data} = $self->{json}->decode($text);
+		} catch {
+			# Clean up.
+			$self->{text} = undef;
+			$self->{json} = undef;
+
+			carp "An error occured while parsing the component parameters: $_";
+		};
 	}
 }
 
@@ -70,8 +80,6 @@ sub as_text {
 		$self->{text} = $self->{json}->encode($self->{data});
 		return $self->{text};
 	}
-
-	return;
 }
 
 1;

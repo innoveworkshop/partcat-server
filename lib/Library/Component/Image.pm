@@ -152,7 +152,7 @@ sub exists {
 
 	# Lookup the component by ID.
 	if (defined $lookup{id}) {
-		my $sth = $lookup{dbh}->prepare("SELECT id FROM Image WHERE id = ?");
+		my $sth = $lookup{dbh}->prepare("SELECT id FROM Images WHERE id = ?");
 		$sth->execute($lookup{id});
 
 		if (defined $sth->fetchrow_arrayref()) {
