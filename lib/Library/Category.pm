@@ -322,13 +322,13 @@ It should contain a I<dbh> parameter and a I<name> B<or> I<id>.
 
 =item I<\%data> = I<$self>->C<_fetch_category>(I<%lookup>)
 
-Fetches category data from the database given a ID (I<id>) or name (I<name>)
+Fetches category data from the database given a category I<id> B<or> I<name>
 passed in the I<%lookup> argument.
 
 =item I<$success> = I<$self>->C<_update_category>()
 
 Updates the category data in the database with the values from the object and
-returns 1 if the operation was successful.
+returns C<1> if the operation was successful.
 
 =item I<$category_id> = I<$self>->C<_add_category>()
 

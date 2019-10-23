@@ -413,13 +413,13 @@ It should contain a I<dbh> parameter and a I<email> B<or> I<id>.
 
 =item I<\%data> = I<$self>->C<_fetch_user>(I<%lookup>)
 
-Fetches user data from the database given a user ID (I<id>) or email (I<email>)
-passed in the I<%lookup> argument.
+Fetches user data from the database given a user I<id> B<or> I<email> passed in
+the I<%lookup> argument.
 
 =item I<$success> = I<$self>->C<_update_user>()
 
 Updates the user data in the database with the values from the object and
-returns 1 if the operation was successful.
+returns C<1> if the operation was successful.
 
 =item I<$user_id> = I<$self>->C<_add_user>()
 
