@@ -44,9 +44,11 @@ sub list {
 	my ($self) = @_;
 
 	if (defined $self->{data}) {
-		my @names = keys %{$self->{data}};
+		my @names = sort keys %{$self->{data}};
 		return \@names;
 	}
+
+	return;
 }
 
 # Get a specific parameter.
@@ -56,6 +58,8 @@ sub get {
 	if (defined $self->{data}) {
 		return $self->{data}->{$name};
 	}
+
+	return;
 }
 
 # Returns the parameters as text.
@@ -66,6 +70,8 @@ sub as_text {
 		$self->{text} = $self->{json}->encode($self->{data});
 		return $self->{text};
 	}
+
+	return;
 }
 
 1;

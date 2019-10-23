@@ -1,6 +1,8 @@
+# Private files.
+static/
+
 # Databases.
 *.db
 
 # Misc.
 .DS_Store
-

@@ -5,10 +5,9 @@ use warnings;
 
 use DBI;
 use Test::Spec;
-use Config::Tiny;
-
 use JSON::MaybeXS;
 use Array::Compare;
+
 use Library::Component::Parameters;
 
 describe "A parameter container" => sub {
@@ -32,6 +31,18 @@ describe "A parameter container" => sub {
 
 			it "should have no data" => sub {
 				is($params->{data}, undef);
+			};
+
+			it "should return undef when querying parameters" => sub {
+				is($params->get("something"), undef);
+			};
+
+			it "should return undef when requesting a list" => sub {
+				is($params->list, undef);
+			};
+
+			it "should return undef when requesting text" => sub {
+				is($params->as_text, undef);
 			};
 
 			after all => sub {
@@ -59,7 +70,7 @@ describe "A parameter container" => sub {
 
 			it "should have a matching list of names" => sub {
 				ok(Array::Compare->new->compare($params->list,
-												[ "test", "arr" ]));
+												[ "arr", "test" ]));
 			};
 
 			it "should return nothing when getting a invalid parameter" => sub {

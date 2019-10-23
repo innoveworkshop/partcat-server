@@ -247,7 +247,7 @@ sub _fetch_component {
 	} elsif (defined $lookup{mpn}) {
 		# Lookup the component by part number.
 		my $sth = $self->{_dbh}->prepare("SELECT * FROM Inventory WHERE mpn = ?");
-		$sth->execute($lookup{email});
+		$sth->execute($lookup{mpn});
 
 		return $sth->fetchrow_hashref();
 	} else {
@@ -262,7 +262,8 @@ sub _update_component {
 	my ($self) = @_;
 
 	# Check if component exists.
-	if (not Library::Component->exists(dbh => $self->{_dbh}, id => $self->{id})) {
+	if (not Library::Component->exists(dbh => $self->{_dbh},
+									   id => $self->{id})) {
 		carp "Can't update a component that doesn't exist";
 		return 0;
 	}
@@ -285,7 +286,7 @@ sub _add_component {
 	my ($self) = @_;
 
 	# Check if the part number already exists.
-	if (User::Account->exists(dbh => $self->{_dbh}, mpn => $self->{mpn})) {
+	if (Library::Component->exists(dbh => $self->{_dbh}, mpn => $self->{mpn})) {
 		carp "Component part number already exists";
 		return;
 	}
@@ -377,6 +378,7 @@ commit these changes to the database.
 Sets the component image using a image ID (I<$image_id>) and returns C<1> if
 it's valid. B<Remember> to call C<save()> to commit these changes to the
 database.
+
 
 =item I<$valid> = I<$component>->C<exists>(I<%lookup>)
 
