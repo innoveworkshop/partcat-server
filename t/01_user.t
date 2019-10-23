@@ -50,6 +50,10 @@ describe "A user" => sub {
 				is($account->get("permissions"), undef);
 			};
 
+			it "should fail a save" => sub {
+				ok(not $account->save());
+			};
+
 			it "should be dirty" => sub {
 				ok($account->get("dirty"));
 			};
@@ -150,6 +154,10 @@ describe "A user" => sub {
 
 		it "should have a matching permission" => sub {
 			is($account->get("permission"), $permission);
+		};
+
+		after all => sub {
+			$account = undef;
 		};
 	};
 };

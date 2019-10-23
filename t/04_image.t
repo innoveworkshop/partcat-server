@@ -35,15 +35,19 @@ describe "A image" => sub {
 			};
 
 			it "should have no ID" => sub {
-				is($image->{id}, undef);
+				is($image->get("id"), undef);
 			};
 
 			it "should have no name" => sub {
-				is($image->{name}, undef);
+				is($image->get("name"), undef);
 			};
 
 			it "should have no path" => sub {
-				is($image->{path}, undef);
+				is($image->get("path"), undef);
+			};
+
+			it "should fail a save" => sub {
+				ok(not $image->save());
 			};
 
 			it "should be dirty" => sub {

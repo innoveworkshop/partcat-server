@@ -40,6 +40,10 @@ describe "A category" => sub {
 				is($category->get("name"), undef);
 			};
 
+			it "should fail a save" => sub {
+				ok(not $category->save());
+			};
+
 			it "should exist" => sub {
 				ok($category->exists());
 			};
@@ -102,6 +106,10 @@ describe "A category" => sub {
 
 		it "should have a matching name" => sub {
 			is($category->get("name"), $name);
+		};
+
+		after all => sub {
+			$category = undef;
 		};
 	};
 };
