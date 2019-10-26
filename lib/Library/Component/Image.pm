@@ -39,6 +39,26 @@ sub create {
 	return $self;
 }
 
+# Lists all the images available.
+sub list {
+	my ($class, %opts) = @_;
+	my @images;
+
+	# Select all the rows and query the database.
+	my $sth = $opts{dbh}->prepare("SELECT * FROM Images");
+	$sth->execute();
+
+	# Loop through the rows.
+	while (my $row = $sth->fetchrow_hashref()) {
+		my $self = $class->new($opts{dbh});
+		$self->_populate($row);
+
+		push @images, $self;
+	}
+
+	return @images;
+}
+
 # Populates the object with data from the database.
 sub load {
 	my ($class, %lookup) = @_;
@@ -54,9 +74,7 @@ sub load {
 	my $image = $self->_fetch_image($lookup{id});
 	if (defined $image) {
 		# Populate the object.
-		$self->{id} = $image->{id};
-		$self->{name} = $image->{name};
-		$self->{path} = $image->{path};
+		$self->_populate($image);
 
 		# Set dirtiness and return.
 		$self->{dirty} = 0;
@@ -164,6 +182,14 @@ sub exists {
 	return 0;
 }
 
+# Populate the object.
+sub _populate {
+	my ($self, $row) = @_;
+
+	$self->{id} = $row->{id};
+	$self->{name} = $row->{name};
+	$self->{path} = $row->{path};
+}
 
 # Fetches the image data from the database.
 sub _fetch_image {
@@ -237,6 +263,9 @@ Library::Component::Image - Abstraction layer to interact with component images.
   my $path = $image->get("path");
   $image->save();
 
+  # Get a list of images.
+  my @list = Library::Component::Image->list(dbh => $dbh);
+
 =head1 METHODS
 
 =over 4
@@ -246,9 +275,14 @@ Library::Component::Image - Abstraction layer to interact with component images.
 Initializes an empty image object or a populated one if the optional I<$id>
 parameter is supplied.
 
-=item I<$image> = C<Library::Component>->C<create>(I<$dbh>, I<name>, I<$path>)
+=item I<$image> = C<Library::Component::Image>->C<create>(I<$dbh>, I<name>, I<$path>)
 
 Creates a new image with I<$name> and I<$path> already checked for validity.
+
+=item I<@list> = C<Library::Component::Image>->C<list>(I<%opts>)
+
+Returns a list of all the available images in the database as a I<@list> of
+objects. This function requires a database handler as I<dbh>.
 
 =item I<$image> = C<Library::Component::Image>->C<load>(I<%lookup>)
 
@@ -281,6 +315,10 @@ It should contain a I<dbh> parameter and a I<id>.
 =back
 
 =head1 PRIVATE METHODS
+
+=item I<$self>->C<_populate(I<$row>)
+
+Populates the object with a I<$row> directly from the database.
 
 =item I<\%data> = I<$self>->C<_fetch_image>(I<$id>)
 

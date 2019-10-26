@@ -34,6 +34,26 @@ sub create {
 	return $self;
 }
 
+# Lists all the user accounts available.
+sub list {
+	my ($class, %opts) = @_;
+	my @categories;
+
+	# Select all the rows and query the database.
+	my $sth = $opts{dbh}->prepare("SELECT * FROM Categories");
+	$sth->execute();
+
+	# Loop through the rows.
+	while (my $row = $sth->fetchrow_hashref()) {
+		my $self = $class->new($opts{dbh});
+		$self->_populate($row);
+
+		push @categories, $self;
+	}
+
+	return @categories;
+}
+
 # Fetch category data from the database.
 sub load {
 	my ($class, %lookup) = @_;
@@ -42,10 +62,8 @@ sub load {
 	# Fetch category data.
 	my $category = $self->_fetch_category(%lookup);
 	if (defined $category) {
-		# Populate the object.
-		$self->{id} = $category->{id};
-		$self->{name} = $category->{name};
-
+		# Populate the object and return.
+		$self->_populate($category);
 		return $self;
 	}
 }
@@ -165,18 +183,12 @@ sub exists {
 	return 0;
 }
 
-# List all the categories available.
-sub list {
-	my ($class, $dbh) = @_;
-	my @categories;
+# Populate the object.
+sub _populate {
+	my ($self, $row) = @_;
 
-	# Fetch all the categories and populate the list with objects.
-	my $cats = $dbh->selectall_arrayref("SELECT * FROM Categories ORDER BY name ASC");
-	for my $cat (@{$cats}) {
-		push @categories, Library::Category->new($dbh, $cat->{id}, $cat->{name});
-	}
-
-	return @categories;
+	$self->{id} = $row->{id};
+	$self->{name} = $row->{name};
 }
 
 # Fetches the category data from the database.
@@ -262,8 +274,8 @@ Library::Category - Abstraction layer to represent a component category.
   $category = Library::Category->load(dbh => $dbh, name = "Transistors");
   print $category->get("name");
 
-  # Listing categories available.
-  my @categories = Library::Category->list($dbh);
+  # Get a list of categories.
+  my @list = Library::Category->list(dbh => $dbh);
 
 =head1 METHODS
 
@@ -279,15 +291,15 @@ Parameters I<$id> and I<$name> are optional.
 Creates a new category with I<$name> already checked for validity. B<Remember>
 to call I<$category>->C<save>() to actually save the category to the database.
 
+=item I<@list> = C<Library::Category>->C<list>(I<%opts>)
+
+Returns a list of all the available categories in the database as a I<@list> of
+objects. This function requires a database handler as I<dbh>.
+
 =item I<$category> = C<Library::Category>->C<load>(I<%lookup>)
 
 Loads the category object with data from the database given a database handler
 (I<dbh>), and a name (I<name>) or ID (I<id>) in the I<%lookup> argument.
-
-=item I<@categories> = C<Library::Category>->C<list>(I<$dbh>)
-
-Fetches a complete list of category objects from the database sorted
-alphabetically.
 
 =item I<$status> = I<$category>->C<save>()
 
@@ -319,6 +331,10 @@ It should contain a I<dbh> parameter and a I<name> B<or> I<id>.
 =head1 PRIVATE METHODS
 
 =over 4
+
+=item I<$self>->C<_populate(I<$row>)
+
+Populates the object with a I<$row> directly from the database.
 
 =item I<\%data> = I<$self>->C<_fetch_category>(I<%lookup>)
 

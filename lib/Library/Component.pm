@@ -58,27 +58,7 @@ sub load {
 	my $component = $self->_fetch_component(%lookup);
 	if (defined $component) {
 		# Populate the object.
-		$self->{id} = $component->{id};
-		$self->{quantity} = $component->{quantity};
-		$self->{mpn} = $component->{mpn};
-		$self->{description} = $component->{description};
-		$self->{parameters}->parse($component->{parameters});
-		$self->{image} = Library::Component::Image->load(dbh => $lookup{dbh},
-														 id => $component->{image_id});
-
-		# Populate the category object.
-		if (defined $component->{cat_id}) {
-			my $category = Library::Category->load(
-				dbh => $lookup{dbh},
-				id => $component->{cat_id});
-			$self->{category} = $category;
-
-			if (not defined $category) {
-				carp "Couldn't find the category for this component by the ID "
-					. $component->{cat_id};
-				return;
-			}
-		}
+		$self->_populate($component);
 
 		# Set dirtiness and return.
 		$self->{dirty} = 0;
@@ -251,6 +231,33 @@ sub exists {
 	return 0;
 }
 
+# Populate the object.
+sub _populate {
+	my ($self, $row) = @_;
+
+	# Populate the usual part of the object.
+	$self->{id} = $row->{id};
+	$self->{quantity} = $row->{quantity};
+	$self->{mpn} = $row->{mpn};
+	$self->{description} = $row->{description};
+	$self->{parameters}->parse($row->{parameters});
+	$self->{image} = Library::Component::Image->load(dbh => $self->{_dbh},
+													 id => $row->{image_id});
+
+	# Populate the category object.
+	if (defined $row->{cat_id}) {
+		my $category = Library::Category->load(dbh => $self->{_dbh},
+											   id => $row->{cat_id});
+
+		$self->{category} = $category;
+		if (not defined $category) {
+			carp "Couldn't find the category for this component by the ID "
+				. $row->{cat_id};
+			return;
+		}
+	}
+}
+
 # Fetches the component data from the database.
 sub _fetch_component {
 	my ($self, %lookup) = @_;
@@ -344,6 +351,9 @@ Library::Component - Abstraction layer to represent a user of the system.
   my $component = Library::Component->load(dbh => $dbh, id => 432);
   print $component->get("mpn");
 
+  # Get a list of components.
+  my @list = Library::Component->list(dbh => $dbh);
+
 =head1 METHODS
 
 =over 4
@@ -357,6 +367,11 @@ I<$mpn>)
 
 Creates a new component with I<$quantity> and I<$mpn> already checked for
 validity.
+
+=item I<@list> = C<Library::Component>->C<list>(I<%opts>)
+
+Returns a list of all the available components in the database as a I<@list> of
+objects. This function requires a database handler as I<dbh>.
 
 =item I<$component> = C<Library::Component>->C<load>(I<%lookup>)
 
@@ -416,6 +431,10 @@ It should contain a I<dbh> parameter and a I<mpn> B<or> I<id>.
 =head1 PRIVATE METHODS
 
 =over 4
+
+=item I<$self>->C<_populate(I<$row>)
+
+Populates the object with a I<$row> directly from the database.
 
 =item I<\%data> = I<$self>->C<_fetch_component>(I<%lookup>)
 

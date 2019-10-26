@@ -46,6 +46,26 @@ sub create {
 	return $self;
 }
 
+# Lists all the user accounts available.
+sub list {
+	my ($class, %opts) = @_;
+	my @users;
+
+	# Select all the rows and query the database.
+	my $sth = $opts{dbh}->prepare("SELECT * FROM Users");
+	$sth->execute();
+
+	# Loop through the rows.
+	while (my $row = $sth->fetchrow_hashref()) {
+		my $self = $class->new($opts{dbh});
+		$self->_populate($row);
+
+		push @users, $self;
+	}
+
+	return @users;
+}
+
 # Fetch data from the database.
 sub load {
 	my ($class, %lookup) = @_;
@@ -55,12 +75,10 @@ sub load {
 	my $user = $self->_fetch_user(%lookup);
 	if (defined $user) {
 		# Populate the object.
-		$self->{id} = $user->{id};
-		$self->{email} = $user->{email};
-		$self->{password} = $user->{password};
-		$self->{permission} = $user->{permission};
-		$self->{dirty} = 0;
+		$self->_populate($user);
 
+		# Set dirtiness and return.
+		$self->{dirty} = 0;
 		return $self;
 	}
 }
@@ -261,6 +279,16 @@ sub exists {
 	return 0;
 }
 
+# Populate the object.
+sub _populate {
+	my ($self, $row) = @_;
+
+	$self->{id} = $row->{id};
+	$self->{email} = $row->{email};
+	$self->{password} = $row->{password};
+	$self->{permission} = $row->{permission};
+}
+
 # Fetches the user data from the database.
 sub _fetch_user {
 	my ($self, %lookup) = @_;
@@ -347,6 +375,9 @@ User::Account - Abstraction layer to represent a user of the system.
   my $account = User::Account->load(dbh => $dbh, id => 123);
   print $account->get("email");
 
+  # Get a list of user accounts.
+  my @list = User::Account->list(dbh => $dbh);
+
 =head1 METHODS
 
 =over 4
@@ -361,6 +392,11 @@ I<$permission>)
 Creates a new user with I<$email> and I<$password> already checked for validity.
 The I<$permission> works kinda like UNIX, 7 is R/W and 6 is just R. B<Remember>
 to call I<$account>->C<save>() to actually save the user to the database.
+
+=item I<@list> = C<User::Account>->C<list>(I<%opts>)
+
+Returns a list of all the available users in the database as a I<@list> of
+objects. This function requires a database handler as I<dbh>.
 
 =item I<$account> = C<User::Account>->C<load>(I<%lookup>)
 
@@ -410,6 +446,10 @@ It should contain a I<dbh> parameter and a I<email> B<or> I<id>.
 =head1 PRIVATE METHODS
 
 =over 4
+
+=item I<$self>->C<_populate(I<$row>)
+
+Populates the object with a I<$row> directly from the database.
 
 =item I<\%data> = I<$self>->C<_fetch_user>(I<%lookup>)
 
