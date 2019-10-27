@@ -12,8 +12,8 @@ use Config::Tiny;
 
 use User::Account;
 
-# Let the user choose which format it wants the response in.
-prepare_serializer_for_format;
+# Set the default (de)serializer to JSON.
+set serializer => "JSON";
 
 # Stuff required to be done before each request.
 hook before => sub {
@@ -28,21 +28,78 @@ get "/" => sub {
 	return "It works!";
 };
 
-# List users.
-get "/user/list.:format" => sub {
-	my @user_refs;
-	check_auth();
+# User handler.
+prefix "/user" => sub {
+	# List them.
+	get "/list" => sub {
+		my @user_refs;
 
-	# Grab a user list and create their references.
-	my @users = User::Account->list(dbh => vars->{dbh});
-	for my $user (@users) {
-		push @user_refs, $user->as_hashref(pass_hidden => 1);
-	}
+		# Check if the user is authenticated.
+		check_auth();
 
-	# Return the data.
-	return {
-		list => \@user_refs,
-		count => scalar @user_refs
+		# Grab a user list and create their references.
+		my @users = User::Account->list(dbh => vars->{dbh});
+		for my $user (@users) {
+			push @user_refs, $user->as_hashref(pass_hidden => 1);
+		}
+
+		# Return the data.
+		return {
+			list => \@user_refs,
+			count => scalar @user_refs
+		};
+	};
+
+	# Get a user.
+	get "/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Get user.
+		my $user = User::Account->load(dbh => vars->{dbh},
+									   id => route_parameters->get("id"));
+		if (defined $user) {
+			return $user->as_hashref(pass_hidden => 1);
+		}
+
+		return status_not_found({ error => "User not found." });
+	};
+
+	# Delete a user by its ID.
+	del "/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Get user.
+		my $user = User::Account->load(dbh => vars->{dbh},
+									   id => route_parameters->get("id"));
+		if (defined $user) {
+			$user->delete();
+			return { message => "User deleted successfully." };
+		}
+
+		return status_not_found({ error => "User not found." });
+	};
+
+	# Create a user.
+	post "/new" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Create user.
+		my $user = User::Account->create(vars->{dbh},
+										 body_parameters->get("email"),
+										 body_parameters->get("password"),
+										 7);
+
+		# Check if the user object was able to be created.
+		if (defined $user) {
+			if ($user->save()) {
+				return $user->as_hashref(pass_hidden => 1);
+			}
+		}
+
+		return status_bad_request({ error => "Some problem occured while trying to create the user. Check your parameters and try again." });
 	};
 };
 
@@ -63,7 +120,7 @@ sub check_auth {
 		}
 	}
 
-	halt(status_unauthorized({ error => "Email and/or password incorrect" }));
+	halt(status_unauthorized({ error => "Email and/or password incorrect." }));
 }
 
 start;
@@ -86,6 +143,10 @@ PartCat::WebApplication - PartCat web application.
 =item C</user/list>
 
 Lists all the users available.
+
+=item C</user/:id>
+
+Get information about a user by its I<id>.
 
 =back
 

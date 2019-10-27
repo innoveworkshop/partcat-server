@@ -81,6 +81,8 @@ sub load {
 		$self->{dirty} = 0;
 		return $self;
 	}
+
+	return;
 }
 
 # Saves the user data to the database.
@@ -113,6 +115,19 @@ sub save {
 	}
 
 	return $success;
+}
+
+# Deletes a user account.
+sub delete {
+	my ($self) = @_;
+
+	my $sth = $self->{_dbh}->prepare("DELETE FROM Users WHERE id = ?");
+	if (defined $sth->execute($self->{id})) {
+		$self->{dirty} = 1;
+		return 1;
+	}
+
+	return 0;
 }
 
 # Get a user parameter.
@@ -426,6 +441,11 @@ argument.
 
 Saves the user account data to the database. If the operation is successful,
 this will return C<1>.
+
+=item I<$account>->C<delete>()
+
+Deletes the current user from the database. This leaves the object unchanged,
+except for its dirtiness.
 
 =item I<$data> = I<$account>->C<get>(I<$param>)
 
