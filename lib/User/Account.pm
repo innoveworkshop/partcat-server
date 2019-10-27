@@ -481,7 +481,7 @@ It should contain a I<dbh> parameter and a I<email> B<or> I<id>.
 
 =item I<\%user> = I<$account>->C<as_hashref>(I<%opts>)
 
-Returns a hash reference of the user account object. Perfect for serialization.
+Returns a hash reference of this object. Perfect for serialization.
 
 A I<pass_hidden> parameter can be passed to hide the password from the output
 hash.

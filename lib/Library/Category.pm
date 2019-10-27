@@ -183,6 +183,17 @@ sub exists {
 	return 0;
 }
 
+# Returns this object as a hash reference for serialization.
+sub as_hashref {
+	my ($self, %opts) = @_;
+	my $obj = {
+		id => $self->{id},
+		name =>  $self->{name}
+	};
+
+	return $obj;
+}
+
 # Populate the object.
 sub _populate {
 	my ($self, $row) = @_;
@@ -325,6 +336,10 @@ objects. In other words: Has a ID defined in the database.
 
 If called statically the I<%lookup> argument is used to check in the database.
 It should contain a I<dbh> parameter and a I<name> B<or> I<id>.
+
+=item I<\%cat> = I<$category>->C<as_hashref>
+
+Returns a hash reference of this object. Perfect for serialization.
 
 =back
 

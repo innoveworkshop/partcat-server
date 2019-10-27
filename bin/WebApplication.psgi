@@ -11,6 +11,7 @@ use Dancer2::Plugin::REST;
 use Config::Tiny;
 
 use User::Account;
+use Library::Category;
 
 # Set the default (de)serializer to JSON.
 set serializer => "JSON";
@@ -26,6 +27,29 @@ hook before => sub {
 # Root path.
 get "/" => sub {
 	return "It works!";
+};
+
+# Category handler.
+prefix "/category" => sub {
+	# List them.
+	get "/list" => sub {
+		my @cat_refs;
+
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Grab a categories list and create their references.
+		my @categories = Library::Category->list(dbh => vars->{dbh});
+		for my $category (@categories) {
+			push @cat_refs, $category->as_hashref;
+		}
+
+		# Return the data.
+		return {
+			list => \@cat_refs,
+			count => scalar @cat_refs
+		};
+	};
 };
 
 # User handler.
@@ -140,13 +164,38 @@ PartCat::WebApplication - PartCat web application.
 
 =over 4
 
-=item C</user/list>
+=head2 CATEGORY
+
+=over 4
+
+=item C<GET> I</category/list>
+
+Lists all the categories available.
+
+=back
+
+=head2 USER
+
+=over 4
+
+=item C<GET> I</user/list>
 
 Lists all the users available.
 
-=item C</user/:id>
+=item C<GET> I</user/:id>
 
 Get information about a user by its I<id>.
+
+=item C<POST> I</user/new>
+
+Creates a new user with a I<email>, I<password> and I<permission> passed in the
+request body as a JSON object.
+
+=item C<DELETE> I</user/:id>
+
+Deletes a user with a specific I<id>.
+
+=back
 
 =back
 
