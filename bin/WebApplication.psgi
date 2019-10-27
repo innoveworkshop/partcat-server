@@ -17,11 +17,14 @@ prepare_serializer_for_format;
 
 # Stuff required to be done before each request.
 hook before => sub {
+	# Set the environment variables.
 	var config => Config::Tiny->read("config/testing.conf");
 	var dbh => DBI->connect("dbi:SQLite:dbname=" . vars->{config}->{database}->{name},
 							"", "", { AutoCommit => 1 });
 
-	# TODO: Check for a authentication header.
+	# Check authentication.
+	var auth_msg => check_auth();
+	var auth_err => defined vars->{auth_msg};
 };
 
 # Root path.
@@ -32,6 +35,11 @@ get "/" => sub {
 # List users.
 get "/user/list.:format" => sub {
 	my @user_refs;
+
+	# Check authentication.
+	if (vars->{auth_err}) {
+		return vars->{auth_msg};
+	}
 
 	# Grab a user list and create their references.
 	my @users = User::Account->list(dbh => vars->{dbh});
@@ -45,6 +53,26 @@ get "/user/list.:format" => sub {
 		count => scalar @user_refs
 	};
 };
+
+# Checks if the user is authenticated.
+sub check_auth {
+	my $email = request_header("Email");
+	my $password = request_header("Password");
+
+	# Check if the headers were defined and check if the user exists.
+	if (defined $email and defined $password) {
+		my $user = User::Account->load(dbh => vars->{dbh}, email => $email);
+
+		# Check if the user was found and the password matches.
+		if (defined $user) {
+			if ($user->check_password($password)) {
+				return;
+			}
+		}
+	}
+
+	return status_unauthorized({ error => "Email and/or password incorrect" });
+}
 
 start;
 
@@ -66,6 +94,17 @@ PartCat::WebApplication - PartCat web application.
 =item C</user/list>
 
 Lists all the users available.
+
+=back
+
+=head1 METHODS
+
+=over 4
+
+=item I<\%err_msg> = C<check_auth>
+
+Checks if the authentication headers were sent and that they match with a stored
+user. In case of an error or the user doesn't exist a I<\%err_msg> is returned.
 
 =back
 
