@@ -21,10 +21,6 @@ hook before => sub {
 	var config => Config::Tiny->read("config/testing.conf");
 	var dbh => DBI->connect("dbi:SQLite:dbname=" . vars->{config}->{database}->{name},
 							"", "", { AutoCommit => 1 });
-
-	# Check authentication.
-	var auth_msg => check_auth();
-	var auth_err => defined vars->{auth_msg};
 };
 
 # Root path.
@@ -35,11 +31,7 @@ get "/" => sub {
 # List users.
 get "/user/list.:format" => sub {
 	my @user_refs;
-
-	# Check authentication.
-	if (vars->{auth_err}) {
-		return vars->{auth_msg};
-	}
+	check_auth();
 
 	# Grab a user list and create their references.
 	my @users = User::Account->list(dbh => vars->{dbh});
@@ -71,7 +63,7 @@ sub check_auth {
 		}
 	}
 
-	return status_unauthorized({ error => "Email and/or password incorrect" });
+	halt(status_unauthorized({ error => "Email and/or password incorrect" }));
 }
 
 start;
