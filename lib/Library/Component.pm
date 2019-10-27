@@ -333,7 +333,7 @@ __END__
 
 =head1 NAME
 
-Library::Component - Abstraction layer to represent a user of the system.
+Library::Component - Abstraction layer to represent a component.
 
 =head1 SYNOPSIS
 
