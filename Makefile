@@ -6,10 +6,14 @@
 # Programs.
 RM = rm -f
 MKDIR = mkdir -p
+PLACKUP = plackup -r
 
 # Paths.
 TESTDB = testing.db
 IMAGEPATH = static/images
+
+run:
+	$(PLACKUP) -R lib/ -I lib/ bin/WebApplication.psgi
 
 init:
 	$(MKDIR) $(IMAGEPATH)
