@@ -279,6 +279,24 @@ sub exists {
 	return 0;
 }
 
+# Returns this object as a hash reference for serialization.
+sub as_hashref {
+	my ($self, %opts) = @_;
+	my $obj = {
+		id => $self->{id},
+		email =>  $self->{email},
+		password => $self->{password},
+		permission => $self->{permission}
+	};
+
+	# Check if the password should be hidden.
+	if (defined $opts{pass_hidden} && $opts{pass_hidden}) {
+		$obj->{password} = undef;
+	}
+
+	return $obj;
+}
+
 # Populate the object.
 sub _populate {
 	my ($self, $row) = @_;
@@ -440,6 +458,13 @@ edited without being saved.
 
 If called statically the I<%lookup> argument is used to check in the database.
 It should contain a I<dbh> parameter and a I<email> B<or> I<id>.
+
+=item I<\%user> = I<$account>->C<as_hashref>(I<%opts>)
+
+Returns a hash reference of the user account object. Perfect for serialization.
+
+A I<pass_hidden> parameter can be passed to hide the password from the output
+hash.
 
 =back
 
