@@ -66,6 +66,8 @@ sub load {
 		$self->_populate($category);
 		return $self;
 	}
+
+	return;
 }
 
 # Saves the category to the database.
@@ -96,6 +98,14 @@ sub save {
 	}
 
 	return $success;
+}
+
+# Deletes a category.
+sub delete {
+	my ($self) = @_;
+
+	my $sth = $self->{_dbh}->prepare("DELETE FROM Categories WHERE id = ?");
+	return defined $sth->execute($self->{id});
 }
 
 # Get a category parameter.
@@ -316,6 +326,10 @@ Loads the category object with data from the database given a database handler
 
 Saves the category data to the database. If the operation is successful, this
 will return C<1>.
+
+=item I<$category>->C<delete>()
+
+Deletes the current category from the database.
 
 =item I<$data> = I<$category>->C<get>(I<$param>)
 

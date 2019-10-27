@@ -50,6 +50,56 @@ prefix "/category" => sub {
 			count => scalar @cat_refs
 		};
 	};
+
+	# Get a category.
+	get "/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Get category.
+		my $category = Library::Category->load(dbh => vars->{dbh},
+											   id => route_parameters->get("id"));
+		if (defined $category) {
+			return $category->as_hashref;
+		}
+
+		return status_not_found({ error => "User not found." });
+	};
+
+	# Create a category.
+	post "/new" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Create category.
+		my $category = Library::Category->create(vars->{dbh},
+												 body_parameters->get("name"));
+
+		# Check if the category object was able to be created.
+		if (defined $category) {
+			if ($category->save()) {
+				return $category->as_hashref;
+			}
+		}
+
+		return status_bad_request({ error => "Some problem occured while trying to create the category. Check your parameters and try again." });
+	};
+
+	# Delete a category by its ID.
+	del "/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Get category.
+		my $category = Library::Category->load(dbh => vars->{dbh},
+											   id => route_parameters->get("id"));
+		if (defined $category) {
+			$category->delete();
+			return { message => "Category deleted successfully." };
+		}
+
+		return status_not_found({ error => "Category not found." });
+	};
 };
 
 # User handler.
@@ -89,22 +139,6 @@ prefix "/user" => sub {
 		return status_not_found({ error => "User not found." });
 	};
 
-	# Delete a user by its ID.
-	del "/:id" => sub {
-		# Check if the user is authenticated.
-		check_auth();
-
-		# Get user.
-		my $user = User::Account->load(dbh => vars->{dbh},
-									   id => route_parameters->get("id"));
-		if (defined $user) {
-			$user->delete();
-			return { message => "User deleted successfully." };
-		}
-
-		return status_not_found({ error => "User not found." });
-	};
-
 	# Create a user.
 	post "/new" => sub {
 		# Check if the user is authenticated.
@@ -124,6 +158,22 @@ prefix "/user" => sub {
 		}
 
 		return status_bad_request({ error => "Some problem occured while trying to create the user. Check your parameters and try again." });
+	};
+
+	# Delete a user by its ID.
+	del "/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Get user.
+		my $user = User::Account->load(dbh => vars->{dbh},
+									   id => route_parameters->get("id"));
+		if (defined $user) {
+			$user->delete();
+			return { message => "User deleted successfully." };
+		}
+
+		return status_not_found({ error => "User not found." });
 	};
 };
 
@@ -171,6 +221,19 @@ PartCat::WebApplication - PartCat web application.
 =item C<GET> I</category/list>
 
 Lists all the categories available.
+
+=item C<GET> I</category/:id>
+
+Get information about a category by its I<id>.
+
+=item C<POST> I</category/new>
+
+Creates a new category with a I<name> passed in the request body as a JSON
+object.
+
+=item C<DELETE> I</category/:id>
+
+Deletes a category with a specific I<id>.
 
 =back
 
