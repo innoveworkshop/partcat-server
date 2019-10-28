@@ -34,7 +34,7 @@ sub create {
 	return $self;
 }
 
-# Lists all the user accounts available.
+# Lists all the components available.
 sub list {
 	my ($class, %opts) = @_;
 	my @categories;

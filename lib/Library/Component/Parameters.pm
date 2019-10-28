@@ -13,17 +13,14 @@ use Try::Tiny;
 sub new {
 	my ($class, $text) = @_;
 	my $self = {
-		text => $text,
-		json => undef,
+		text => "{}",
+		json => JSON::MaybeXS->new(utf8 => 1),
 		data => undef
 	};
 
+	# Bless object and parse the JSON text.
 	bless $self, $class;
-
-	# Check if text was defined and parse it.
-	if (defined $text) {
-		$self->parse($text);
-	}
+	$self->parse($text);
 
 	return $self;
 }
@@ -33,12 +30,17 @@ sub parse {
 	my ($self, $text) = @_;
 
 	if (defined $text) {
-		# Set text and decode the JSON.
+		# Set text.
 		$self->{text} = $text;
-		$self->{json} = JSON::MaybeXS->new(utf8 => 1);
 
+		# Check if the text is empty and create a blank object with it.
+		if ($text =~ /^\s*$/) {
+			$self->{text} = "{}";
+		}
+
+		# Try to decode the JSON object.
 		try {
-			$self->{data} = $self->{json}->decode($text);
+			$self->{data} = $self->{json}->decode($self->{text});
 		} catch {
 			# Clean up.
 			$self->{text} = undef;
@@ -55,7 +57,11 @@ sub list {
 
 	if (defined $self->{data}) {
 		my @names = sort keys %{$self->{data}};
-		return \@names;
+
+		# Check if the list isn't empty.
+		if ((scalar @names) > 0) {
+			return \@names;
+		}
 	}
 
 	return;
@@ -64,12 +70,22 @@ sub list {
 # Get a specific parameter.
 sub get {
 	my ($self, $name) = @_;
+	return $self->{data}->{$name};
+}
 
-	if (defined $self->{data}) {
-		return $self->{data}->{$name};
+# Sets some parameters.
+sub set {
+	my ($self, %params) = @_;
+
+	for my $name (keys %params) {
+		$self->{data}->{$name} = $params{$name};
 	}
+}
 
-	return;
+# Returns this object as a hash reference for serialization.
+sub as_hashref {
+	my ($self, %opts) = @_;
+	return $self->{data};
 }
 
 # Returns the parameters as text.
@@ -96,11 +112,12 @@ Library::Component::Parameters - Abstraction layer to interact with component pa
   my $json_text = ...;
 
   # Create a component
-  my $component = Library::Component::Parameters->new();
-  $component->parse($json_text);
+  my $params = Library::Component::Parameters->new();
+  $params->parse($json_text);
+  $params->set(Vmax => 12.34, Vbe => 0.65);
 
   # Get new JSON encoded as text to put in the database.
-  my $text = $component->as_text;
+  my $text = $params->as_text;
   print "$text\n";
 
 =head1 METHODS
@@ -120,10 +137,18 @@ Parses a JSON text (I<$text>) and populates the class with its contents.
 
 Returns a array reference of all the available parameters.
 
+=item I<$params>->C<set>(I<%params>)
+
+Sets the parameters defined in I<%params>.
+
 =item I<$param> = I<$params>->C<get>(I<$name>)
 
 Returns a parameter data (could be a string, number, array reference, hash
 reference, etc.) given a I<$name>.
+
+=item I<\%json> = I<$params>->C<as_hashref>
+
+Returns a hash reference of this object. Perfect for serialization.
 
 =item I<$json_text> = I<$params>->C<as_text>
 

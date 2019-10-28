@@ -7,6 +7,7 @@ use warnings;
 
 use Carp;
 use DBI;
+use Scalar::Util qw(looks_like_number);
 
 use Library::Category;
 use Library::Component::Parameters;
@@ -49,6 +50,26 @@ sub create {
 	return $self;
 }
 
+# Lists all the components available.
+sub list {
+	my ($class, %opts) = @_;
+	my @components;
+
+	# Select all the rows and query the database.
+	my $sth = $opts{dbh}->prepare("SELECT * FROM Inventory");
+	$sth->execute();
+
+	# Loop through the rows.
+	while (my $row = $sth->fetchrow_hashref()) {
+		my $self = $class->new($opts{dbh});
+		$self->_populate($row);
+
+		push @components, $self;
+	}
+
+	return @components;
+}
+
 # Fetch data from the database.
 sub load {
 	my ($class, %lookup) = @_;
@@ -64,6 +85,8 @@ sub load {
 		$self->{dirty} = 0;
 		return $self;
 	}
+
+	return;
 }
 
 # Saves the component data to the database.
@@ -87,7 +110,7 @@ sub save {
 	}
 
 	# Propagate changes to image.
-	if ((not$self->{image}->save()) and (defined $self->{image}->get("id"))) {
+	if ((not $self->{image}->save()) and (defined $self->{image}->get("id"))) {
 		carp "Couldn't save the image object";
 		return 0;
 	}
@@ -109,6 +132,14 @@ sub save {
 	}
 
 	return $success;
+}
+
+# Deletes a component.
+sub delete {
+	my ($self) = @_;
+
+	my $sth = $self->{_dbh}->prepare("DELETE FROM Inventory WHERE id = ?");
+	return defined $sth->execute($self->{id});
 }
 
 # Get a component object parameter.
@@ -133,8 +164,8 @@ sub set_quantity {
 	my ($self, $quantity) = @_;
 
 	# Check if quantity is a number.
-	if (!($quantity & ~$quantity)) {
-		$self->{quantity} = $quantity;
+	if (looks_like_number($quantity)) {
+		$self->{quantity} = $quantity + 0;
 		$self->{dirty} = 1;
 
 		return 1;
@@ -194,6 +225,12 @@ sub set_image {
 	return defined $self->{image};
 }
 
+# Sets a component parameters.
+sub set_parameters {
+	my ($self, %params) = @_;
+	$self->{parameters}->set(%params);
+}
+
 # Check if this component is valid.
 sub exists {
 	my ($class, %lookup) = @_;
@@ -229,6 +266,22 @@ sub exists {
 
 	# Component wasn't found.
 	return 0;
+}
+
+# Returns this object as a hash reference for serialization.
+sub as_hashref {
+	my ($self, %opts) = @_;
+	my $obj = {
+		id => $self->{id},
+		quantity =>  $self->{quantity},
+		mpn => $self->{mpn},
+		category => $self->{category}->as_hashref,
+		description => $self->{description},
+		parameters => $self->{parameters}->as_hashref,
+		image => $self->{image}->as_hashref
+	};
+
+	return $obj;
 }
 
 # Populate the object.
@@ -383,6 +436,10 @@ Loads the component object with data from the database given a database handler
 Saves the component data to the database. If the operation is successful, this
 will return C<1>.
 
+=item I<$component>->C<delete>()
+
+Deletes the current component from the database.
+
 =item I<$data> = I<$component>->C<get>(I<$param>)
 
 Retrieves the value of I<$param> from the component object.
@@ -416,6 +473,9 @@ Sets the component image using a image ID (I<$image_id>) and returns C<1> if
 it's valid. B<Remember> to call C<save()> to commit these changes to the
 database.
 
+=item I<$component>->C<set_parameters>(I<%params>)
+
+Sets some component parameters using the I<%params> hash.
 
 =item I<$valid> = I<$component>->C<exists>(I<%lookup>)
 
@@ -425,6 +485,10 @@ been edited without being saved.
 
 If called statically the I<%lookup> argument is used to check in the database.
 It should contain a I<dbh> parameter and a I<mpn> B<or> I<id>.
+
+=item I<\%cat> = I<$category>->C<as_hashref>
+
+Returns a hash reference of this object. Perfect for serialization.
 
 =back
 

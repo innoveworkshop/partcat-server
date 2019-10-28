@@ -21,16 +21,12 @@ describe "A parameter container" => sub {
 				is(ref $params, "Library::Component::Parameters");
 			};
 
-			it "should have no text" => sub {
-				is($params->{text}, undef);
+			it "should have an empty JSON object as text" => sub {
+				is($params->{text}, "{}");
 			};
 
-			it "should have no JSON object" => sub {
-				is($params->{json}, undef);
-			};
-
-			it "should have no data" => sub {
-				is($params->{data}, undef);
+			it "should have a JSON object" => sub {
+				is(ref $params->{json}, JSON::MaybeXS::JSON());
 			};
 
 			it "should return undef when querying parameters" => sub {
@@ -42,7 +38,7 @@ describe "A parameter container" => sub {
 			};
 
 			it "should return empty text when requesting text" => sub {
-				is($params->as_text, '');
+				is($params->as_text, '{}');
 			};
 
 			after all => sub {
