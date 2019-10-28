@@ -107,7 +107,7 @@ prefix "/component" => sub {
 			if (populate_component($component, 1)) {
 				# Save the component.
 				if ($component->save()) {
-					return $component->as_hashref();
+					return $component->as_hashref;
 				}
 			}
 
@@ -190,6 +190,31 @@ prefix "/category" => sub {
 		return status_bad_request({ error => "Some problem occured while trying to create the category. Check your parameters and try again." });
 	};
 
+	# Edit a category.
+	post "/edit/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Load category.
+		my $category = Library::Category->load(dbh => vars->{dbh},
+											   id => route_parameters->get("id"));
+
+		# Check if the category object was loaded successfully.
+		if (defined $category) {
+			# Check if the object population was successful before saving.
+			if ($category->set_name(body_parameters->get("name"))) {
+				# Save the component.
+				if ($category->save()) {
+					return $category->as_hashref;
+				}
+			}
+
+			return status_bad_request({ error => "Some problem occured while trying to edit the category. Check your parameters and try again." });
+		}
+
+		return status_not_found({ error => "Category not found." });
+	};
+
 	# Delete a category by its ID.
 	del "/:id" => sub {
 		# Check if the user is authenticated.
@@ -204,81 +229,6 @@ prefix "/category" => sub {
 		}
 
 		return status_not_found({ error => "Category not found." });
-	};
-};
-
-# User handler.
-prefix "/user" => sub {
-	# List them.
-	get "/list" => sub {
-		my @user_refs;
-
-		# Check if the user is authenticated.
-		check_auth();
-
-		# Grab a user list and create their references.
-		my @users = User::Account->list(dbh => vars->{dbh});
-		for my $user (@users) {
-			push @user_refs, $user->as_hashref(pass_hidden => 1);
-		}
-
-		# Return the data.
-		return {
-			list => \@user_refs,
-			count => scalar @user_refs
-		};
-	};
-
-	# Get a user.
-	get "/:id" => sub {
-		# Check if the user is authenticated.
-		check_auth();
-
-		# Get user.
-		my $user = User::Account->load(dbh => vars->{dbh},
-									   id => route_parameters->get("id"));
-		if (defined $user) {
-			return $user->as_hashref(pass_hidden => 1);
-		}
-
-		return status_not_found({ error => "User not found." });
-	};
-
-	# Create a user.
-	post "/new" => sub {
-		# Check if the user is authenticated.
-		check_auth();
-
-		# Create user.
-		my $user = User::Account->create(vars->{dbh},
-										 body_parameters->get("email"),
-										 body_parameters->get("password"),
-										 7);
-
-		# Check if the user object was able to be created.
-		if (defined $user) {
-			if ($user->save()) {
-				return $user->as_hashref(pass_hidden => 1);
-			}
-		}
-
-		return status_bad_request({ error => "Some problem occured while trying to create the user. Check your parameters and try again." });
-	};
-
-	# Delete a user by its ID.
-	del "/:id" => sub {
-		# Check if the user is authenticated.
-		check_auth();
-
-		# Get user.
-		my $user = User::Account->load(dbh => vars->{dbh},
-									   id => route_parameters->get("id"));
-		if (defined $user) {
-			$user->delete();
-			return { message => "User deleted successfully." };
-		}
-
-		return status_not_found({ error => "User not found." });
 	};
 };
 
@@ -448,6 +398,44 @@ prefix "/user" => sub {
 		return status_bad_request({ error => "Some problem occured while trying to create the user. Check your parameters and try again." });
 	};
 
+	# Edit a user.
+	post "/edit/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Load user.
+		my $user = User::Account->load(dbh => vars->{dbh},
+									   id => route_parameters->get("id"));
+
+		# Check if the user object was loaded successfully.
+		my $success = defined $user;
+		if ($success) {
+			# Set email.
+			my $email = body_parameters->get("email");
+			if (defined $email) {
+				$success = ($success and $user->set_email($email));
+			}
+
+			# Set password.
+			my $password = body_parameters->get("password");
+			if (defined $password) {
+				$success = ($success and $user->set_password($password));
+			}
+
+			# Check if the object population was successful before saving.
+			if ($success) {
+				# Save the component.
+				if ($user->save()) {
+					return $user->as_hashref(pass_hidden => 1);
+				}
+			}
+
+			return status_bad_request({ error => "Some problem occured while trying to edit the user. Check your parameters and try again." });
+		}
+
+		return status_not_found({ error => "User not found." });
+	};
+
 	# Delete a user by its ID.
 	del "/:id" => sub {
 		# Check if the user is authenticated.
@@ -456,6 +444,8 @@ prefix "/user" => sub {
 		# Get user.
 		my $user = User::Account->load(dbh => vars->{dbh},
 									   id => route_parameters->get("id"));
+
+		# Check if the user object was loaded successfully.
 		if (defined $user) {
 			$user->delete();
 			return { message => "User deleted successfully." };
@@ -495,32 +485,32 @@ sub populate_component {
 		# Set quantity.
 		my $quantity = body_parameters->get("quantity");
 		if (defined $quantity) {
-			$success = $success and $component->set_quantity($quantity);
+			$success = ($success and $component->set_quantity($quantity));
 		}
 
 		# Set part number.
 		my $mpn = body_parameters->get("mpn");
 		if (defined $mpn) {
-			$success = $success and $component->set_mpn($mpn);
+			$success = ($success and $component->set_mpn($mpn));
 		}
 	}
 
 	# Set description.
 	my $description = body_parameters->get("description");
 	if (defined $description) {
-		$success = $success and $component->set_description($description);
+		$success = ($success and $component->set_description($description));
 	}
 
 	# Set category.
 	my $cat_id = body_parameters->get("cat_id");
 	if (defined $cat_id) {
-		$success = $success and $component->set_category(id => $cat_id);
+		$success = ($success and $component->set_category(id => $cat_id));
 	}
 
 	# Set image.
 	my $image_id = body_parameters->get("image_id");
 	if (defined $image_id) {
-		$success = $success and $component->set_image($image_id);
+		$success = ($success and $component->set_image($image_id));
 	}
 
 	# Set parameters.
