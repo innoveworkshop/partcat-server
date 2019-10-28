@@ -31,8 +31,7 @@ sub create {
 	my $self = $class->new($dbh, $config);
 
 	# Set name and path correctly.
-	$self->{name} = $name;
-	if (not $self->set_path($path)) {
+	if ((not $self->set_name($name)) or (not $self->set_path($path))) {
 		return;
 	}
 
@@ -166,13 +165,33 @@ sub direct_path {
 	return;
 }
 
+# Set the image name.
+sub set_name {
+	my ($self, $name) = @_;
+
+	# Check if the name is defined and not empty.
+	if (defined $name and not ($name =~ /^ *$/)) {
+		# Set the image name.
+		$self->{name} = $name;
+
+		# Set dirtiness and return.
+		$self->{dirty} = 1;
+		return 1;
+	}
+
+	return 0;
+}
+
 # Set the image path.
 sub set_path {
 	my ($self, $path) = @_;
 
+	# Check if the image file exists.
 	if (-s $self->{_config}->{path}->{images} . "/$path") {
+		# Set image path.
 		$self->{path} = $path;
 
+		# Set dirtiness and return.
 		$self->{dirty} = 1;
 		return 1;
 	}
@@ -234,7 +253,7 @@ sub _populate {
 	my ($self, $row) = @_;
 
 	$self->{id} = $row->{id};
-	$self->{name} = $row->{name};
+	$self->set_name($row->{name});
 	$self->{path} = $row->{path};
 }
 
@@ -360,7 +379,12 @@ Retrieves the value of I<$param> from the image object.
 
 =item I<$success> = I<$image>->C<set_path>(I<$path>)
 
-Sets the image path and returns C<1> if it's valid. B<Remember> to call
+Sets the image I<path> and returns C<1> if it's valid. B<Remember> to call
+C<save()> to commit these changes to the database.
+
+=item I<$success> = I<$image>->C<set_name>(I<$name>)
+
+Sets the image I<name> and returns C<1> if it's valid. B<Remember> to call
 C<save()> to commit these changes to the database.
 
 =item I<$valid> = I<$image>->C<exists>(I<%lookup>)

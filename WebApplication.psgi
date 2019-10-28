@@ -203,7 +203,7 @@ prefix "/category" => sub {
 		if (defined $category) {
 			# Check if the object population was successful before saving.
 			if ($category->set_name(body_parameters->get("name"))) {
-				# Save the component.
+				# Save the category.
 				if ($category->save()) {
 					return $category->as_hashref;
 				}
@@ -319,6 +319,32 @@ prefix "/image" => sub {
 		}
 
 		return status_bad_request({ error => "Some problem occured while trying to create the image. Check your parameters and try again." });
+	};
+
+	# Edit a image.
+	post "/edit/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Load image.
+		my $image = Library::Component::Image->load(dbh => vars->{dbh},
+													config => vars->{config},
+													id => route_parameters->get("id"));
+
+		# Check if the image object was loaded successfully.
+		if (defined $image) {
+			# Check if the object population was successful before saving.
+			if ($image->set_name(body_parameters->get("name"))) {
+				# Save the image.
+				if ($image->save()) {
+					return $image->as_hashref;
+				}
+			}
+
+			return status_bad_request({ error => "Some problem occured while trying to edit the image. Check your parameters and try again." });
+		}
+
+		return status_not_found({ error => "Image not found." });
 	};
 
 	# Delete a image by its ID.
