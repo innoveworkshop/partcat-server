@@ -12,6 +12,8 @@ use Config::Tiny;
 
 use User::Account;
 use Library::Category;
+use Library::Component;
+use Library::Component::Image;
 
 # Set the default (de)serializer to JSON.
 set serializer => "JSON";
@@ -100,6 +102,83 @@ prefix "/category" => sub {
 
 		return status_not_found({ error => "Category not found." });
 	};
+};
+
+# Image handler.
+prefix "/image" => sub {
+	# List them.
+	get "/list" => sub {
+		my @image_refs;
+
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Grab a image list and create their references.
+		my @images = Library::Component::Image->list(dbh => vars->{dbh});
+		for my $image (@images) {
+			push @image_refs, $image->as_hashref;
+		}
+
+		# Return the data.
+		return {
+			list => \@image_refs,
+			count => scalar @image_refs
+		};
+	};
+
+	# Get a image.
+	get "/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Get image.
+		my $image = Library::Component::Image->load(dbh => vars->{dbh},
+													id => route_parameters->get("id"));
+		if (defined $image) {
+			return $image->as_hashref;
+		}
+
+		return status_not_found({ error => "Image not found." });
+	};
+
+	# Create a image.
+	post "/new" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# TODO: Improve this to include upload and download from URL.
+
+		# Create image.
+		my $image = Library::Component::Image->create(vars->{dbh},
+													  body_parameters->get("name"),
+													  body_parameters->get("path"));
+
+		# Check if the image object was able to be created.
+		if (defined $image) {
+			if ($image->save()) {
+				return $image->as_hashref;
+			}
+		}
+
+		return status_bad_request({ error => "Some problem occured while trying to create the image. Check your parameters and try again." });
+	};
+
+	# Delete a image by its ID.
+	del "/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Get image.
+		my $image = Library::Component::Image->load(dbh => vars->{dbh},
+													id => route_parameters->get("id"));
+		if (defined $image) {
+			$image->delete();
+			return { message => "Image deleted successfully." };
+		}
+
+		return status_not_found({ error => "Image not found." });
+	};
+
 };
 
 # User handler.

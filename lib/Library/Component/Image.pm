@@ -7,16 +7,18 @@ use warnings;
 
 use Carp;
 use DBI;
+use Config::Tiny;
 
 # Constructor.
 sub new {
-	my ($class, $dbh) = @_;
+	my ($class, $dbh, $config) = @_;
 	my $self = {
-		_dbh  => $dbh,
-		id    => undef,
-		name  => undef,
-		path  => undef,
-		dirty => 1
+		_dbh    => $dbh,
+		_config => $config,
+		id      => undef,
+		name    => undef,
+		path    => undef,
+		dirty   => 1
 	};
 
 	bless $self, $class;
@@ -25,8 +27,8 @@ sub new {
 
 # Creates a new image.
 sub create {
-	my ($class, $dbh, $name, $path) = @_;
-	my $self = $class->new($dbh);
+	my ($class, $dbh, $config, $name, $path) = @_;
+	my $self = $class->new($dbh, $config);
 
 	# Set name and path correctly.
 	$self->{name} = $name;
@@ -50,7 +52,7 @@ sub list {
 
 	# Loop through the rows.
 	while (my $row = $sth->fetchrow_hashref()) {
-		my $self = $class->new($opts{dbh});
+		my $self = $class->new($opts{dbh}, $opts{config});
 		$self->_populate($row);
 
 		push @images, $self;
@@ -62,7 +64,7 @@ sub list {
 # Populates the object with data from the database.
 sub load {
 	my ($class, %lookup) = @_;
-	my $self = $class->new($lookup{dbh});
+	my $self = $class->new($lookup{dbh}, $lookup{config});
 
 	# Check if we have the ID.
 	if (not defined $lookup{id}) {
@@ -114,6 +116,27 @@ sub save {
 	return $success;
 }
 
+# Deletes a image.
+sub delete {
+	my ($self) = @_;
+
+	# Remove the item from the database.
+	my $sth = $self->{_dbh}->prepare("DELETE FROM Images WHERE id = ?");
+	my $ok = $sth->execute($self->{id});
+
+	# Check if the operation was successful.
+	if (defined $ok) {
+		# Delete file and check if it did work.
+		if (unlink $self->{_config}->{path}->{images} . "/" . $self->{path}) {
+			return 1;
+		}
+
+		carp "Couldn't remove image file: $!";
+	}
+
+	return 0;
+}
+
 # Get a image object parameter.
 sub get {
 	my ($self, $param) = @_;
@@ -135,7 +158,7 @@ sub get {
 sub set_path {
 	my ($self, $path) = @_;
 
-	if (-s $path) {
+	if (-s $self->{_config}->{path}->{images} . "/$path") {
 		$self->{path} = $path;
 
 		$self->{dirty} = 1;
@@ -180,6 +203,18 @@ sub exists {
 
 	# Image wasn't found.
 	return 0;
+}
+
+# Returns this object as a hash reference for serialization.
+sub as_hashref {
+	my ($self, %opts) = @_;
+	my $obj = {
+		id => $self->{id},
+		name =>  $self->{name},
+		path => $self->{path}
+	};
+
+	return $obj;
 }
 
 # Populate the object.
@@ -251,15 +286,20 @@ Library::Component::Image - Abstraction layer to interact with component images.
 
 =head1 SYNOPSIS
 
+  # Read the configuration file.
+  my $config = Config::Tiny->read(...);
+
   # Create a database handler.
   my $dbh = DBI->connect(...);
 
   # Create an empty image object.
-  my $image = Library::Component::Image->new($dbh);
+  my $image = Library::Component::Image->new($dbh, $config);
 
   # Load a image.
   my $id = 123;
-  $image = Library::Component::Image->new($dbh, $id);
+  $image = Library::Component::Image->load(dbh => $dbh,
+                                           config => $config,
+                                           id => $id);
   my $path = $image->get("path");
   $image->save();
 
@@ -270,29 +310,37 @@ Library::Component::Image - Abstraction layer to interact with component images.
 
 =over 4
 
-=item I<$image> = C<Library::Component::Image>->C<new>(I<$dbh>[, I<$id>])
+=item I<$image> = C<Library::Component::Image>->C<new>(I<$dbh>, I<$config>)
 
-Initializes an empty image object or a populated one if the optional I<$id>
-parameter is supplied.
+Initializes an empty image object with a database handler (I<$dbh>) and a
+Config::Tiny object (I<$config>).
 
-=item I<$image> = C<Library::Component::Image>->C<create>(I<$dbh>, I<name>, I<$path>)
+=item I<$image> = C<Library::Component::Image>->C<create>(I<$dbh>, I<$config>,
+I<name>, I<$path>)
 
 Creates a new image with I<$name> and I<$path> already checked for validity.
+Requires a database handler (I<$dbh>) and a Config::Tiny object (I<$config>).
 
 =item I<@list> = C<Library::Component::Image>->C<list>(I<%opts>)
 
 Returns a list of all the available images in the database as a I<@list> of
-objects. This function requires a database handler as I<dbh>.
+objects. This function requires a database handler as I<dbh> and a
+Config::Tiny object as I<config>.
 
 =item I<$image> = C<Library::Component::Image>->C<load>(I<%lookup>)
 
 Loads the image object with data from the database given a database handler
-(I<dbh>), and a ID (I<id>) in the I<%lookup> argument.
+(I<dbh>), a Config::Tiny object (I<config>), and a ID (I<id>) in the I<%lookup>
+argument.
 
 =item I<$status> = I<$image>->C<save>()
 
 Saves the image data to the database. If the operation is successful, this will
 return C<1>.
+
+=item I<$image>->C<delete>()
+
+Deletes the current image from the database.
 
 =item I<$data> = I<$image>->C<get>(I<$param>)
 
@@ -311,6 +359,10 @@ without being saved.
 
 If called statically the I<%lookup> argument is used to check in the database.
 It should contain a I<dbh> parameter and a I<id>.
+
+=item I<\%img> = I<$image>->C<as_hashref>
+
+Returns a hash reference of this object. Perfect for serialization.
 
 =back
 

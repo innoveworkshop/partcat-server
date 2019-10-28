@@ -16,7 +16,7 @@ describe "A image" => sub {
 	my $image;
 	my $image_id;
 	my $name = "TO-92";
-	my $path = "static/images/test.png";
+	my $path = "test.png";
 
 	before all => sub {
 		# Load configuration.
@@ -30,7 +30,7 @@ describe "A image" => sub {
 	describe "created" => sub {
 		describe "empty" => sub {
 			it "should be created" => sub {
-				$image = Library::Component::Image->new($dbh);
+				$image = Library::Component::Image->new($dbh, $config);
 				is(ref $image, "Library::Component::Image");
 			};
 
@@ -61,7 +61,8 @@ describe "A image" => sub {
 
 		describe "nicely" => sub {
 			it "should be created" => sub {
-				$image = Library::Component::Image->create($dbh, $name, $path);
+				$image = Library::Component::Image->create($dbh, $config, $name,
+														   $path);
 				is(ref $image, "Library::Component::Image");
 			};
 
@@ -99,6 +100,7 @@ describe "A image" => sub {
 	describe "loaded" => sub {
 		it "should load" => sub {
 			$image = Library::Component::Image->load(dbh => $dbh,
+													 config => $config,
 													 id => $image_id);
 			is(ref $image, "Library::Component::Image");
 		};
