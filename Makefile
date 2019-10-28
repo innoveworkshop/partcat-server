@@ -13,7 +13,7 @@ TESTDB = testing.db
 IMAGEPATH = public/images/components
 
 run:
-	$(PLACKUP) -R lib/ -I lib/ bin/WebApplication.psgi
+	$(PLACKUP) -R lib/ -I lib/ WebApplication.psgi
 
 test: $(IMAGEPATH)/test.png
 	$(RM) $(TESTDB)
