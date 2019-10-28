@@ -21,8 +21,8 @@ sub new {
 		id          => undef,
 		quantity    => undef,
 		mpn         => undef,
-		category    => Library::Category->new($dbh),
-		image       => Library::Component::Image->new($dbh),
+		category    => undef,
+		image       => undef,
 		description => undef,
 		parameters  => Library::Component::Parameters->new,
 		dirty       => 1
@@ -103,16 +103,21 @@ sub save {
 	}
 
 	# Propagate changes to category.
-	if ((not $self->{category}->save()) and
-			(defined $self->{category}->get("id"))) {
-		carp "Couldn't save the category object";
-		return 0;
+	if (defined $self->{category}) {
+		if ((not $self->{category}->save()) or
+				(not defined $self->{category}->get("id"))) {
+			carp "Couldn't save the category object";
+			return 0;
+		}
 	}
 
 	# Propagate changes to image.
-	if ((not $self->{image}->save()) and (defined $self->{image}->get("id"))) {
-		carp "Couldn't save the image object";
-		return 0;
+	if (defined $self->{image}) {
+		if ((not $self->{image}->save()) or
+				(not defined $self->{image}->get("id"))) {
+			carp "Couldn't save the image object";
+			return 0;
+		}
 	}
 
 	if (defined $self->{id}) {
@@ -275,11 +280,21 @@ sub as_hashref {
 		id => $self->{id},
 		quantity =>  $self->{quantity},
 		mpn => $self->{mpn},
-		category => $self->{category}->as_hashref,
+		category => undef,
 		description => $self->{description},
 		parameters => $self->{parameters}->as_hashref,
-		image => $self->{image}->as_hashref
+		image => undef
 	};
+
+	# Set category object.
+	if (defined $self->{category}) {
+		$obj->{category} = $self->{category}->as_hashref;
+	}
+
+	# Set image object.
+	if (defined $self->{image}) {
+		$obj->{image} = $self->{image}->as_hashref;
+	}
 
 	return $obj;
 }
@@ -294,8 +309,12 @@ sub _populate {
 	$self->{mpn} = $row->{mpn};
 	$self->{description} = $row->{description};
 	$self->{parameters}->parse($row->{parameters});
-	$self->{image} = Library::Component::Image->load(dbh => $self->{_dbh},
-													 id => $row->{image_id});
+
+	# Populate the image object.
+	if (defined $row->{image_id}) {
+		$self->{image} = Library::Component::Image->load(dbh => $self->{_dbh},
+														 id => $row->{image_id});
+	}
 
 	# Populate the category object.
 	if (defined $row->{cat_id}) {
@@ -345,13 +364,25 @@ sub _update_component {
 		return 0;
 	}
 
+	# Get the category ID.
+	my $cat_id = undef;
+	if (defined $self->{category}) {
+		$cat_id = $self->{category}->{id};
+	}
+
+	# Get image ID.
+	my $image_id = undef;
+	if (defined $self->{image}) {
+		$image_id = $self->{image}->{id};
+	}
+
 	# Update the component information.
 	my $sth = $self->{_dbh}->prepare("UPDATE inventory SET quantity = ?, mpn = ?,
                                      cat_id = ?, image_id = ?, description = ?,
                                      parameters = ? WHERE id = ?");
-	if ($sth->execute($self->{quantity}, $self->{mpn}, $self->{category}->{id},
-					  $self->{image}->{id}, $self->{description},
-					  $self->{parameters}->as_text, $self->{id})) {
+	if ($sth->execute($self->{quantity}, $self->{mpn}, $cat_id, $image_id,
+					  $self->{description}, $self->{parameters}->as_text,
+					  $self->{id})) {
 		return 1;
 	}
 
@@ -368,13 +399,24 @@ sub _add_component {
 		return;
 	}
 
+	# Get the category ID.
+	my $cat_id = undef;
+	if (defined $self->{category}) {
+		$cat_id = $self->{category}->{id};
+	}
+
+	# Get image ID.
+	my $image_id = undef;
+	if (defined $self->{image}) {
+		$image_id = $self->{image}->{id};
+	}
+
 	# Add the new component to the database.
 	my $sth = $self->{_dbh}->prepare("INSERT INTO Inventory(quantity, mpn,
                                      cat_id, image_id, description, parameters)
                                      VALUES (?, ?, ?, ?, ?, ?)");
-	if ($sth->execute($self->{quantity}, $self->{mpn}, $self->{category}->{id},
-					  $self->{image}->{id}, $self->{description},
-					  $self->{parameters}->as_text)) {
+	if ($sth->execute($self->{quantity}, $self->{mpn}, $cat_id, $image_id,
+					  $self->{description}, $self->{parameters}->as_text)) {
 		# Get the component ID from the last insert operation.
 		return $self->{_dbh}->last_insert_id(undef, undef, 'inventory', 'id');
 	}

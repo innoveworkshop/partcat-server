@@ -23,7 +23,7 @@ hook before => sub {
 	# Set the environment variables.
 	var config => Config::Tiny->read("config/testing.conf");
 	var dbh => DBI->connect("dbi:SQLite:dbname=" . vars->{config}->{database}->{name},
-							"", "", { AutoCommit => 1 });
+							"", "", { AutoCommit => 1, RaiseError => 1});
 };
 
 # Root path.
@@ -79,35 +79,9 @@ prefix "/component" => sub {
 												   body_parameters->get("mpn"));
 
 		# Check if the component object was able to be created.
-		my $success = defined $component;
-		if ($success) {
-			# Set description.
-			my $description = body_parameters->get("description");
-			if (defined $description) {
-				$success = $success or $component->set_description($description);
-			}
-
-			# Set category.
-			my $cat_id = body_parameters->get("cat_id");
-			if (defined $cat_id) {
-				$success = $success or $component->set_category(id => $cat_id);
-			}
-
-			# Set image.
-			my $image_id = body_parameters->get("image_id");
-			if (defined $image_id) {
-				$success = $success or $component->set_image($image_id);
-			}
-
-			# Set parameters.
-			my $params = body_parameters->get("parameters");
-			if (defined $params) {
-				$component->set_parameters(%{$params});
-			}
-
-			# Check if all the previous operations were successful before saving.
-			if ($success) {
-				print "HELLOOOOOOO\n";
+		if (defined $component) {
+			# Check if the object population was successful before saving.
+			if (populate_component($component, 0)) {
 				# Save the component.
 				if ($component->save()) {
 					return $component->as_hashref();
@@ -116,6 +90,31 @@ prefix "/component" => sub {
 		}
 
 		return status_bad_request({ error => "Some problem occured while trying to create the component. Check your parameters and try again." });
+	};
+
+	# Edit a component.
+	post "/edit/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Load component.
+		my $component = Library::Component->load(dbh => vars->{dbh},
+												 id => route_parameters->get("id"));
+
+		# Check if the component object was loaded successfully.
+		if (defined $component) {
+			# Check if the object population was successful before saving.
+			if (populate_component($component, 1)) {
+				# Save the component.
+				if ($component->save()) {
+					return $component->as_hashref();
+				}
+			}
+
+			return status_bad_request({ error => "Some problem occured while trying to edit the component. Check your parameters and try again." });
+		}
+
+		return status_not_found({ error => "Component not found." });
 	};
 
 	# Delete a component by its ID.
@@ -486,6 +485,53 @@ sub check_auth {
 	halt(status_unauthorized({ error => "Email and/or password incorrect." }));
 }
 
+# Populates a component object with data from the request.
+sub populate_component {
+	my ($component, $editing) = @_;
+	my $success = 1;
+
+	# If editing, then be able to change the quantity and mpn.
+	if ($editing) {
+		# Set quantity.
+		my $quantity = body_parameters->get("quantity");
+		if (defined $quantity) {
+			$success = $success and $component->set_quantity($quantity);
+		}
+
+		# Set part number.
+		my $mpn = body_parameters->get("mpn");
+		if (defined $mpn) {
+			$success = $success and $component->set_mpn($mpn);
+		}
+	}
+
+	# Set description.
+	my $description = body_parameters->get("description");
+	if (defined $description) {
+		$success = $success and $component->set_description($description);
+	}
+
+	# Set category.
+	my $cat_id = body_parameters->get("cat_id");
+	if (defined $cat_id) {
+		$success = $success and $component->set_category(id => $cat_id);
+	}
+
+	# Set image.
+	my $image_id = body_parameters->get("image_id");
+	if (defined $image_id) {
+		$success = $success and $component->set_image($image_id);
+	}
+
+	# Set parameters.
+	my $params = body_parameters->get("parameters");
+	if (defined $params) {
+		$component->set_parameters(%{$params});
+	}
+
+	return $success;
+}
+
 start;
 
 __END__
@@ -521,6 +567,12 @@ Creates a new component with a I<quantity> and a I<mpn> passed in the request
 body as a JSON object. B<Optional arguments:> I<description>, I<cat_id>,
 I<image_id>, and a I<parameters> JSON object.
 
+=item C<POST> I</component/edit/:id>
+
+Edits a component by its I<id> with a I<quantity> and a I<mpn> passed in the
+request body as a JSON object. B<Optional arguments:> I<description>, I<cat_id>,
+I<image_id>, and a I<parameters> JSON object.
+
 =item C<DELETE> I</component/:id>
 
 Deletes a component with a specific I<id>.
@@ -543,6 +595,11 @@ Get information about a category by its I<id>.
 
 Creates a new category with a I<name> passed in the request body as a JSON
 object.
+
+=item C<POST> I</category/edit/:id>
+
+Edits a category by its I<id> with a I<name> passed in the request body as a
+JSON object.
 
 =item C<DELETE> I</category/:id>
 
@@ -571,6 +628,11 @@ Get the image file by its I<id>.
 Creates a new image with a I<name> and a I<path> passed in the request body as a
 JSON object.
 
+=item C<POST> I</image/edit/:id>
+
+Edits a image by its I<id> with a I<name> and a I<path> passed in the request
+body as a JSON object.
+
 =item C<DELETE> I</image/:id>
 
 Deletes an image with a specific I<id>.
@@ -594,6 +656,11 @@ Get information about a user by its I<id>.
 Creates a new user with a I<email>, I<password> and I<permission> passed in the
 request body as a JSON object.
 
+=item C<POST> I</user/edit/:id>
+
+Edits a user by its I<id> with a I<email>, I<password> and I<permission> passed
+in the request body as a JSON object.
+
 =item C<DELETE> I</user/:id>
 
 Deletes a user with a specific I<id>.
@@ -602,7 +669,7 @@ Deletes a user with a specific I<id>.
 
 =back
 
-=head1 METHODS
+=head1 PRIVATE METHODS
 
 =over 4
 
@@ -610,6 +677,12 @@ Deletes a user with a specific I<id>.
 
 Checks if the authentication headers were sent and that they match with a stored
 user. In case of an error or the user doesn't exist a I<\%err_msg> is returned.
+
+=item I<$success> = C<populate_component>(I<$component>, I<$editing>)
+
+Populates a I<$component> object with all the optional parameters gathered from
+the request. Set the I<$editing> flag to C<1> to enable populating the quantity
+and the part number.
 
 =back
 

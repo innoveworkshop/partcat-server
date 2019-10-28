@@ -26,7 +26,7 @@ describe "A component" => sub {
 
 		# Open the database connection.
 		$dbh = DBI->connect("dbi:SQLite:dbname=$config->{database}->{name}",
-							"", "", { AutoCommit => 1 });
+							"", "", { AutoCommit => 1, RaiseError => 1 });
 	};
 
 	describe "created" => sub {
