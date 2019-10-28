@@ -114,7 +114,8 @@ prefix "/image" => sub {
 		check_auth();
 
 		# Grab a image list and create their references.
-		my @images = Library::Component::Image->list(dbh => vars->{dbh});
+		my @images = Library::Component::Image->list(dbh => vars->{dbh},
+													 config => vars->{config});
 		for my $image (@images) {
 			push @image_refs, $image->as_hashref;
 		}
@@ -133,9 +134,37 @@ prefix "/image" => sub {
 
 		# Get image.
 		my $image = Library::Component::Image->load(dbh => vars->{dbh},
+													config => vars->{config},
 													id => route_parameters->get("id"));
 		if (defined $image) {
 			return $image->as_hashref;
+		}
+
+		return status_not_found({ error => "Image not found." });
+	};
+
+	# Get the image file.
+	get "/file/:id" => sub {
+		# Check if the user is authenticated.
+		check_auth();
+
+		# Get image.
+		my $image = Library::Component::Image->load(dbh => vars->{dbh},
+													config => vars->{config},
+													id => route_parameters->get("id"));
+		if (defined $image) {
+			my $path = $image->direct_path;
+
+			# Check if the path is valid.
+			if (defined $path) {
+				# Remove the "public/" part, since send_file is relative to it.
+				$path =~ s/^public\///;
+				use Data::Dumper;
+				print Dumper($path);
+
+				# Send the image file.
+				send_file($path);
+			}
 		}
 
 		return status_not_found({ error => "Image not found." });
@@ -150,6 +179,7 @@ prefix "/image" => sub {
 
 		# Create image.
 		my $image = Library::Component::Image->create(vars->{dbh},
+													  vars->{config},
 													  body_parameters->get("name"),
 													  body_parameters->get("path"));
 
@@ -170,6 +200,7 @@ prefix "/image" => sub {
 
 		# Get image.
 		my $image = Library::Component::Image->load(dbh => vars->{dbh},
+													config => vars->{config},
 													id => route_parameters->get("id"));
 		if (defined $image) {
 			$image->delete();

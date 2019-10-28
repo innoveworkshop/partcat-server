@@ -154,6 +154,18 @@ sub get {
 	return;
 }
 
+# Get the direct path to the image file.
+sub direct_path {
+	my ($self) = @_;
+	my $path = $self->{_config}->{path}->{images} . "/" . $self->{path};
+
+	if (-s $path) {
+		return $path;
+	}
+
+	return;
+}
+
 # Set the image path.
 sub set_path {
 	my ($self, $path) = @_;

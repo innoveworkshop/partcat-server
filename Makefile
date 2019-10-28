@@ -10,7 +10,7 @@ PLACKUP = plackup -r
 
 # Paths.
 TESTDB = testing.db
-IMAGEPATH = static/images/components
+IMAGEPATH = public/images/components
 
 run:
 	$(PLACKUP) -R lib/ -I lib/ bin/WebApplication.psgi
