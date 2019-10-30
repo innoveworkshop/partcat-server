@@ -655,8 +655,8 @@ Get the image file by its I<id>.
 
 =item C<POST> I</image/new>
 
-Creates a new image with a I<name> and a base64-encoded data URI image file as
-I<uri> passed in the request body as a JSON object.
+Creates a new image with a I<name> and a URL or base64-encoded data URI image
+file as I<uri> passed in the request body as a JSON object.
 
 =item C<POST> I</image/edit/:id>
 
