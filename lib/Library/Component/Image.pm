@@ -170,12 +170,13 @@ sub direct_path {
 		$path = "$path/$filename";
 	}
 
+	# Skip checks.
+	if (defined $nocheck and $nocheck) {
+		return $path;
+	}
+
 	# Check the path.
-	if (defined $nocheck and not $nocheck) {
-		if (-s $path) {
-			return $path;
-		}
-	} else {
+	if (-s $path) {
 		return $path;
 	}
 
@@ -312,10 +313,15 @@ sub download_from_uri {
 		my $ext = File::MimeInfo->extensions($mime);
 
 		# Create a filename-safe path.
-		my $filename = $self->{name} =~ s/[\s\/<>:;"'\\\|\?\*!\@\$#\%^&~`{}\[\]]//gr;
+		my $filename = $self->_filename_safe;
 		$filename = "$filename.$ext";
 
-		# TODO: Check if the file exists and give a unique filename if it does.
+		# Check if the file exists and give a unique filename if it does.
+		my $rand_num = 1;
+		while (defined $self->direct_path($filename)) {
+			$filename = $self->_filename_safe . "-$rand_num.$ext";
+			$rand_num++;
+		}
 
 		# Open file and write the data to it.
 		open(my $fh, ">", $self->direct_path($filename, 1));
@@ -387,6 +393,21 @@ sub _add_image {
 		# Get the image ID from the last insert operation.
 		return $self->{_dbh}->last_insert_id(undef, undef, 'images', 'id');
 	}
+}
+
+# Get a filename-safe version of the image name.
+sub _filename_safe {
+	my ($self) = @_;
+
+	# Check if the name was defined and return the filename-safe version.
+	if (defined $self->{name}) {
+		my $fn = $self->{name} =~ s/[\s\/<>:;"'\\\|\?\*!\@\$#\%^&~`{}\[\]]/-/gr;
+		$fn =~ s/-{2,}//g;
+
+		return $fn;
+	}
+
+	return;
 }
 
 1;
@@ -518,6 +539,10 @@ returns C<1> if the operation was successful.
 
 Creates a new image inside the database with the values from the object and
 returns the component ID if everything went fine.
+
+=item I<$filename> = I<$self>->C<_filename_safe>
+
+Gets a filename-safe version of the image I<name>.
 
 =over 4
 
