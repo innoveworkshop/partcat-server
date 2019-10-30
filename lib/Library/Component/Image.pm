@@ -4,10 +4,14 @@ package Library::Component::Image;
 
 use strict;
 use warnings;
+use autodie;
 
 use Carp;
 use DBI;
+use URI;
 use Config::Tiny;
+use File::MimeInfo;
+use LWP::UserAgent;
 
 # Constructor.
 sub new {
@@ -27,11 +31,12 @@ sub new {
 
 # Creates a new image.
 sub create {
-	my ($class, $dbh, $config, $name, $path) = @_;
+	my ($class, $dbh, $config, $name, $path, $nocheck) = @_;
 	my $self = $class->new($dbh, $config);
 
 	# Set name and path correctly.
-	if ((not $self->set_name($name)) or (not $self->set_path($path))) {
+	if ((not $self->set_name($name)) or
+			(not $self->set_path($path, $nocheck))) {
 		return;
 	}
 
@@ -155,10 +160,22 @@ sub get {
 
 # Get the direct path to the image file.
 sub direct_path {
-	my ($self) = @_;
-	my $path = $self->{_config}->{path}->{images} . "/" . $self->{path};
+	my ($self, $filename, $nocheck) = @_;
+	my $path = $self->{_config}->{path}->{images};
 
-	if (-s $path) {
+	# Check if a filename was specified and use the appropriate one.
+	if (not defined $filename) {
+		$path = "$path/" . $self->{path};
+	} else {
+		$path = "$path/$filename";
+	}
+
+	# Check the path.
+	if (defined $nocheck and not $nocheck) {
+		if (-s $path) {
+			return $path;
+		}
+	} else {
 		return $path;
 	}
 
@@ -184,10 +201,11 @@ sub set_name {
 
 # Set the image path.
 sub set_path {
-	my ($self, $path) = @_;
+	my ($self, $path, $nocheck) = @_;
+	my $realpath = $self->direct_path($path, $nocheck);
 
 	# Check if the image file exists.
-	if (-s $self->{_config}->{path}->{images} . "/$path") {
+	if (defined $realpath) {
 		# Set image path.
 		$self->{path} = $path;
 
@@ -246,6 +264,70 @@ sub as_hashref {
 	};
 
 	return $obj;
+}
+
+# Saves a uploaded image.
+sub download_from_uri {
+	my ($self, $uri_text) = @_;
+	my $uri = URI->new($uri_text);
+	my $mime;
+	my $content;
+
+	# Check if the URI is valid.
+	if ($uri->has_recognized_scheme) {
+		# Check if the URI is a URL.
+		if ($uri->scheme ne "data") {
+			# Setup LWP with a generic Firefox UA to increase compatibility.
+			my $ua = LWP::UserAgent->new(
+				agent => "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:24.0) Gecko/20100101 Firefox/24.0",
+				cookie_jar => {}
+			);
+
+			# Fetch the file.
+			my $res = $ua->get($uri_text);
+
+			# Fail if there were aany issues with our download.
+			if (not $res->is_success) {
+				carp "A problem occured when fetching the image from a URL: " .
+					$res->status_line;
+				return 0;
+			}
+
+			# Store the file contents into a variable.
+			$content = $res->decoded_content(charset => "none");
+			$mime = $res->header("Content-Type");
+
+			# Check if there was a MIME type available.
+			if (not defined $mime) {
+				carp "Content-Type header wasn't defined.";
+				return 0;
+			}
+		} else {
+			# It's a data URI.
+			$mime = $uri->media_type;
+			$content = $uri->data;
+		}
+
+		# Get file extension from MIME type.
+		my $ext = File::MimeInfo->extensions($mime);
+
+		# Create a filename-safe path.
+		my $filename = $self->{name} =~ s/[\s\/<>:;"'\\\|\?\*!\@\$#\%^&~`{}\[\]]//gr;
+		$filename = "$filename.$ext";
+
+		# TODO: Check if the file exists and give a unique filename if it does.
+
+		# Open file and write the data to it.
+		open(my $fh, ">", $self->direct_path($filename, 1));
+		binmode $fh;
+		print $fh $content;
+		close($fh);
+
+		# Return true if the file was created successfully.
+		return $self->set_path($filename);
+	}
+
+	return 0;
 }
 
 # Populate the object.
@@ -347,10 +429,12 @@ Initializes an empty image object with a database handler (I<$dbh>) and a
 Config::Tiny object (I<$config>).
 
 =item I<$image> = C<Library::Component::Image>->C<create>(I<$dbh>, I<$config>,
-I<name>, I<$path>)
+I<name>, I<$path>[, $nocheck])
 
-Creates a new image with I<$name> and I<$path> already checked for validity.
-Requires a database handler (I<$dbh>) and a Config::Tiny object (I<$config>).
+Creates a new image with I<$name> and I<$path> already checked for validity,
+unless the I<$nocheck> argument is set to I<true>, which will skip the path
+check. Requires a database handler (I<$dbh>) and a Config::Tiny object
+(I<$config>).
 
 =item I<@list> = C<Library::Component::Image>->C<list>(I<%opts>)
 
@@ -377,10 +461,18 @@ Deletes the current image from the database.
 
 Retrieves the value of I<$param> from the image object.
 
-=item I<$success> = I<$image>->C<set_path>(I<$path>)
+=item I<$path> = I<$image>->C<direct_path>([I<$filename>, I<$nocheck>])
 
-Sets the image I<path> and returns C<1> if it's valid. B<Remember> to call
-C<save()> to commit these changes to the database.
+Retrieves the path relative to the project root to the image file using the
+object I<path>, if the file is not found I<undef> is returned. You can also
+specify a I<$filename> to be used instead of the I<path> and skip the check
+with I<$nocheck> as C<1>.
+
+=item I<$success> = I<$image>->C<set_path>(I<$path>[, I<$nocheck>])
+
+Sets the image I<path> and returns C<1> if it's valid. If the I<$nocheck>
+parameter is I<true>, the file checks are going to be skipped. B<Remember> to
+call C<save()> to commit these changes to the database.
 
 =item I<$success> = I<$image>->C<set_name>(I<$name>)
 
@@ -399,6 +491,11 @@ It should contain a I<dbh> parameter and a I<id>.
 =item I<\%img> = I<$image>->C<as_hashref>
 
 Returns a hash reference of this object. Perfect for serialization.
+
+=item I<$success> = I<$image>->C<download_from_uri>(I<$uri_text>)
+
+Downloads an image file passed as either a URL or a data URI as the I<$uri_text>
+argument and returns C<1> if the operation was successful.
 
 =back
 

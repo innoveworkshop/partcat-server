@@ -303,16 +303,17 @@ prefix "/image" => sub {
 		# Check if the user is authenticated.
 		check_auth();
 
-		# TODO: Improve this to include upload and download from URL.
-
 		# Create image.
 		my $image = Library::Component::Image->create(vars->{dbh},
 													  vars->{config},
 													  body_parameters->get("name"),
-													  body_parameters->get("path"));
+													  "", 1);
+
+		# Upload image.
+		my $success = $image->download_from_uri(body_parameters->get("uri"));
 
 		# Check if the image object was able to be created.
-		if (defined $image) {
+		if ($success and defined $image) {
 			if ($image->save()) {
 				return $image->as_hashref;
 			}
@@ -332,9 +333,22 @@ prefix "/image" => sub {
 													id => route_parameters->get("id"));
 
 		# Check if the image object was loaded successfully.
-		if (defined $image) {
+		my $success = defined $image;
+		if ($success) {
+			# Set name.
+			my $name = body_parameters->get("name");
+			if (defined $name) {
+				$success = ($success and $image->set_name($name));
+			}
+
+			# Set image file.
+			my $uri = body_parameters->get("uri");
+			if (defined $uri) {
+				$success = ($success and $image->download_from_uri($uri));
+			}
+
 			# Check if the object population was successful before saving.
-			if ($image->set_name(body_parameters->get("name"))) {
+			if ($success) {
 				# Save the image.
 				if ($image->save()) {
 					return $image->as_hashref;
@@ -641,12 +655,12 @@ Get the image file by its I<id>.
 
 =item C<POST> I</image/new>
 
-Creates a new image with a I<name> and a I<path> passed in the request body as a
-JSON object.
+Creates a new image with a I<name> and a base64-encoded data URI image file as
+I<uri> passed in the request body as a JSON object.
 
 =item C<POST> I</image/edit/:id>
 
-Edits a image by its I<id> with a I<name> and a I<path> passed in the request
+Edits a image by its I<id> with a I<name> and/or I<uri> passed in the request
 body as a JSON object.
 
 =item C<DELETE> I</image/:id>
