@@ -4,27 +4,40 @@
 # Author: Nathan Campos <nathan@innoveworkshop.com>
 
 # Programs.
+CP = cp
 RM = rm -f
+SED = sed -i
 MKDIR = mkdir -p
 PLACKUP = plackup -r
+SQLITE = sqlite3
 
 # Paths.
-TESTDB = testing.db
+CONFPATH = config
 IMAGEPATH = public/images/components
+TESTDB = testing.db
+MAINDB = partcat.db
+TESTCONF = testing.conf
+MAINCONF = main.conf
 
 run:
 	$(PLACKUP) -R lib/ -I lib/ WebApplication.psgi
 
+init: $(CONFPATH)/$(MAINCONF) $(MAINDB)
+
 test: $(IMAGEPATH)/test.png
 	$(RM) $(TESTDB)
-	sqlite3 $(TESTDB) < sql/initialize.sql
+	$(SQLITE) $(TESTDB) < sql/initialize.sql
 	prove -lvcf
 
 critic:
 	perlcritic -4 lib/
 
-$(TESTDB):
-	sqlite3 $@ < sql/initialize.sql
+$(MAINDB):
+	$(SQLITE) $@ < sql/initialize.sql
+
+$(CONFPATH)/$(MAINCONF):
+	$(CP) $(CONFPATH)/$(TESTCONF) $@
+	$(SED) "s/$(TESTDB)/$(MAINDB)/g" $@
 
 $(IMAGEPATH)/test.png:
 	$(MKDIR) $(IMAGEPATH)
@@ -33,3 +46,7 @@ $(IMAGEPATH)/test.png:
 clean:
 	$(RM) $(TESTDB)
 	$(RM) $(IMAGEPATH)/test.png
+
+purge: clean
+	$(RM) $(MAINDB)
+	$(RM) $(CONFPATH)/$(MAINCONF)
