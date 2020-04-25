@@ -573,7 +573,7 @@ PartCat::WebApplication - PartCat web application.
 =head1 SYNOPSIS
 
   # Initialize the server.
-  $ plackup -r -R lib bin/WebApplication.psgi
+  $ plackup -r -R lib WebApplication.psgi
 
 =head1 API ENDPOINTS
 
