@@ -21,6 +21,18 @@ C<config/main.conf> file and change the settings to fit your needs.
 To make sure everything is perfect for deployment you can run C<make test>,
 which will run all the unit tests to make sure that you have a working system.
 
+=head1 RUNNING
+
+After setting the server up and running the tests, it finally comes time to run
+the actual server instance. To do this simply run
+C<plackup -r -R lib WebApplication.psgi> and the server will start up.
+
+=head1 API DOCUMENTATION
+
+To learn more about the API endpoints you should check the documentation of the
+C<WebApplication.psgi> source file. There you'll have all the API documentation
+in the POD section of the document.
+
 =head1 AUTHOR
 
 Nathan Campos <nathan@innoveworkhsop.com>
