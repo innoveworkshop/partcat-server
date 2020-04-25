@@ -12,6 +12,8 @@ this module.
 
 =head1 SETUP
 
+First of all, make sure you have L<App::cpanminus> installed. Then run the
+classic C<cpanm --installdeps .> to install all the necessary dependencies. Then
 All you need to do is run C<make init> to create the database and a sample
 configuration file for the application, then all you need to do is edit the
 C<config/main.conf> file and change the settings to fit your needs.
@@ -24,8 +26,8 @@ which will run all the unit tests to make sure that you have a working system.
 =head1 RUNNING
 
 After setting the server up and running the tests, it finally comes time to run
-the actual server instance. To do this simply run
-C<plackup -r -R lib WebApplication.psgi> and the server will start up.
+the actual server instance. To do this simply run C<make run> and the server
+will start up.
 
 =head1 API DOCUMENTATION
 
